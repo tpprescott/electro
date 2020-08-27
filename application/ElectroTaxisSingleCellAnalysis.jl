@@ -90,14 +90,14 @@ function construct_posterior_NoEF(; test_idx = test_idx_NoEF)
     q1 = SequentialImportanceDistribution(t1[end], prior_NoEF) # Note this forces the support of the posterior equal to that of prior_NoEF
     Σ = ISProposal(prior_NoEF, q1, L_NoEF_BSL(500), getindex(y_obs_NoEF, InvertedIndices.Not(test_idx)))
     t = importance_sample(Σ, 10000)
-    save_sample("./application/Seq_NoEF.jld", [t])
+    save_sample("./application/seq/NoEF.jld", [t])
     return nothing
 end
 
 # Make an intermediate prior, using the posterior based on the NoEF experiment
 export posterior_NoEF
 function posterior_NoEF()
-    t = load_sample("./application/Seq_NoEF.jld", SingleCellModel)
+    t = load_sample("./application/seq/NoEF.jld", SingleCellModel)
     q = SequentialImportanceDistribution(t[end], prior_NoEF)
     return q
 end
@@ -136,7 +136,7 @@ function train_all_models(; test_idx=test_idx_EF)
     for (id, prior) in prior_sequential_all()
         Σ = Σ_Sequential_BSL_SMC(prior)
         t = smc_sample(Σ, N, scale = σ, test_idx = (test_idx,))
-        fn = "./application/Seq_train_"*String(id)*".jld"
+        fn = "./application/seq/train/"*String(id)*".jld"
         save_sample(fn, t)
     end
     return nothing
@@ -150,7 +150,7 @@ function test_all_models()
     T_train = load_Combinatorial_trained()
     for (id, t) in T_train
         L = @showprogress pmap(test_loglikelihood, t)
-        fn = "./application/Seq_test_"*String(id)*".jld"
+        fn = "./application/seq/test/"*String(id)*".jld"
         save(fn, "L", L)
     end
 end
@@ -160,7 +160,7 @@ function load_Combinatorial_trained()
     return Dict(id => load_Combinatorial_trained(id, Θ) for (id, Θ) in model_all)
 end
 function load_Combinatorial_trained(id::Symbol, ::Type{Θ}) where Θ
-    fn = "./application/Seq_train_"*String(id)*".jld"
+    fn = "./application/seq/train/"*String(id)*".jld"
     t = load_sample(fn, Θ)
     return t[end]
 end
@@ -168,8 +168,8 @@ function load_Combinatorial_tested()
     return Dict(id => load_Combinatorial_tested(id, Θ) for (id, Θ) in model_all)
 end
 function load_Combinatorial_tested(id::Symbol, ::Type{Θ}) where Θ
-    fn_1 = "./application/Seq_train_"*String(id)*".jld"
-    fn_2 = "./application/Seq_test_"*String(id)*".jld"
+    fn_1 = "./application/seq/train/"*String(id)*".jld"
+    fn_2 = "./application/seq/test/"*String(id)*".jld"
 
     t = load_sample(fn_1, Θ)
     L = load(fn_2, "L")
