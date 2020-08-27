@@ -7,7 +7,7 @@ using IndexedTables, Combinatorics, InvertedIndices, JLD
 using Distributed, ProgressMeter
 import .LikelihoodFree.domain
 import .LikelihoodFree.ndims
-
+using LaTeXStrings
 
 const prior_support = [(0.001, 3.0) (0.001, 5.0) (0.001, 5.0) (0.001, 1.0) (0.0, 2.0) (0.0, 2.0) (0.0, 2.0) (0.0,2.0)]
 const prior_flat_components = Dict(
@@ -334,7 +334,10 @@ X_labels = Dict(
 using StatsPlots
 export see_selection
 
-function see_selection(objective_func)
+function see_selection(objective_func;
+        kwargs...
+    )
+
     J = model_selection(objective_func)
     lbl = keys(J)
 
@@ -346,18 +349,24 @@ function see_selection(objective_func)
     yticks=(1:16, nam[sort_idx]),
     legend=:none,
     orientation=:h,
-    ylabel="Parameter space X")
+    ylabel="Parameter space, X",
+    xlim = (minimum(J_vec)-10, maximum(J_vec)+10),
+    kwargs...
+)
 
     return fig
 end
 
 function see_selection(; kwargs...)
-    fig_AIC = see_selection(J_AIC)
-    fig_BIC = see_selection(J_BIC)
-    fig_0 = see_selection(J_0)
-    fig_2 = see_selection(J_2)
+    fig_AIC = see_selection(J_AIC, title=L"J_{AIC}")
+    fig_BIC = see_selection(J_BIC, title=L"J_{BIC}")
+    fig_0 = see_selection(J_0, title=L"J_0")
+    fig_2 = see_selection(J_2, title=L"J_2")
 
-    fig = plot(fig_AIC, fig_BIC, fig_0, fig_2, layout=(2,2))
+    fig = plot(fig_0, fig_2, fig_AIC, fig_BIC;
+        layout=(2,2),
+        kwargs...,
+        )
 end
 
 ################################ Compare to data
