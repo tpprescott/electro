@@ -243,6 +243,14 @@ function see_parameters_Joint(; generation::Int64=10, cols=nothing, kwargs...)
     fig = parameterweights(filter(r->r.weight>0, T); xlim=prior_support[C], columns=C, kwargs...)
 end
 
+function see_parameters_Joint_topup(; cols=nothing, kwargs...)
+    t = load_sample("./application/Joint_topup.jld", merge(SingleCellModel, VelocityBias, SpeedIncrease, PolarityBias))
+    T = t[1]
+    C = cols===nothing ? (1:7) : cols
+    fig = parameterweights(filter(r->r.weight>0, T); xlim=prior_support[C], columns=C, kwargs...)
+end
+
+
 #=
 function see_parameters_SequentialFull(; generation::Int64=10, cols=nothing, kwargs...)
     t = load_sample("./applications/electro/Sequential_BSL_SMC.jld", merge(SingleCellModel, SingleCellBiases))
