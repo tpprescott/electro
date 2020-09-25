@@ -228,7 +228,7 @@ end
 
 
 ########## Writeup Functions
-export see_parameters_NoEF, see_parameters_Joint
+export see_parameters_NoEF, see_parameters_Joint, see_parameters_Joint_topup
 function see_parameters_NoEF(; generation::Int64=10, cols=nothing, kwargs...)
     t = load_sample("./application/NoEF_SMC.jld", SingleCellModel)
     T = t[generation]
