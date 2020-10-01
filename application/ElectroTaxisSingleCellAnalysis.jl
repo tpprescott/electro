@@ -362,7 +362,7 @@ BestModel = merge(SingleCellModel, VelocityBias, SpeedIncrease, PolarityBias)
 
 export extend_outputs_switch, see_outputs_switch
 function extend_outputs_switch(; kwargs...)
-    T = load_sample("./application/Joint_SMC_topup.jld", BestModel)
+    T = load_sample("./application/Joint_topup.jld", BestModel)
     t = filter(posweight, T[end])
     for func_name in (:T_RL_switch, :goes_perp_switch, :stays_polarised_switch)
         println(func_name)
@@ -379,7 +379,7 @@ end
 
 export extend_outputs_stop, see_outputs_stop
 function extend_outputs_stop(; kwargs...)
-    T = load_sample("./application/Joint_SMC_topup.jld", BestModel)
+    T = load_sample("./application/Joint_topup.jld", BestModel)
     t = filter(posweight, T[end])
     for func_name in (:T_RL_stop, :goes_perp_stop, :stays_polarised_stop)
         println(func_name)
