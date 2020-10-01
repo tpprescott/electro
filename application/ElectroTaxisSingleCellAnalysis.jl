@@ -272,33 +272,64 @@ end
 
 const F_NoEF_long = SingleCellSimulator(tspan=(0.0, 1000.0))
 
+const EMF_LR = ConstantEF(complex(1.0))
+const EMF_RL = ConstantEF(complex(-1.0))
+const F_LR_long = SingleCellSimulator(tspan=(0.0, 1000.0), emf=EMF_LR)
+const F_RL_long = SingleCellSimulator(tspan=(0.0, 1000.0), emf=EMF_RL)
+
 ispolarised(px; pbar) = (abs(px[1]) >= pbar)
-function T_on(sol; pbar)
-    i = findfirst(px->ispolarised(px; pbar=pbar), sol.u)
+isdepolarised(px; pbar) = !ispolarised(px; pbar=pbar)
+isLR(px; pbar) = (real(px[1]) >  abs(imag(px[1]))) && ispolarised(px; pbar=pbar)
+isRL(px; pbar) = (real(px[1]) < -abs(imag(px[1]))) && ispolarised(px; pbar=pbar)
+isperp(px; pbar) = (abs(imag(px[1]))>abs(real(px[1]))) && ispolarised(px; pbar=pbar)
+
+function hitting_time(boolfun, sol; kwargs...)
+    i = findfirst(x->boolfun(x; kwargs...), sol.u)
     return sol.t[i]
 end
-function T_on(θ::NamedTuple; n=500)
-    sols = F_NoEF_long(n; θ..., U0=fill([complex(0.0),complex(0.0)],n), output_trajectory=true)
+function longterm(boolfun, sol; kwargs...)
+    return boolfun(sol[end]; kwargs...)
+end
+
+T_on(sol; pbar) = hitting_time(ispolarised, sol; pbar=pbar)
+T_off(sol; pbar) = hitting_time(isdepolarised, sol; pbar=pbar)
+T_LR(sol; pbar) = hitting_time(isLR, sol; pbar=pbar)
+T_RL(sol; pbar) = hitting_time(isRL, sol; pbar=pbar)
+T_perp(sol; pbar) = hitting_time(isperp, sol; pbar=pbar)
+Π(sol; pbar) = longterm(ispolarised, sol; pbar=pbar)
+
+stays_polarised(sol; pbar) = (T_RL(sol; pbar=pbar) < T_off(sol; pbar=pbar))
+goes_perp(sol; pbar) = (T_perp(sol; pbar=pbar) < T_off(sol; pbar=pbar))
+
+function get_dist(fun, θ::NamedTuple; n=500, p0=complex(0.0), F::SingleCellSimulator=F_NoEF_long)
+    sols = F(n; θ..., U0 = fill([p0, complex(0.0)], n), output_trajectory=true)
+    λ = ElectroTaxis.get_λ(θ.ΔW_on, θ.ΔW_off)
+    return broadcast(sol->fun(sol; pbar=sqrt(λ-1)), sols)
+end
+
+
+#=
+function T_on(θ::NamedTuple; n=500, p0=complex(0.0), F::SingleCellSimulator=F_NoEF_long)
+    sols = F(n; θ..., U0=fill([p0,complex(0.0)],n), output_trajectory=true)
     λ = ElectroTaxis.get_λ(θ.ΔW_on, θ.ΔW_off)
     return mean(sol->T_on(sol; pbar=sqrt(λ-1)), sols)
 end
-
-function T_off(sol; pbar)
-    i = findfirst(px->!ispolarised(px; pbar=pbar), sol.u)
-    return sol.t[i]
-end
-function T_off(θ::NamedTuple; n=500)
-    sols = F_NoEF_long(n; θ..., U0=fill([complex(1.0),complex(0.0)],n), output_trajectory=true)
+function T_off(θ::NamedTuple; n=500, p0=complex(1.0), F::SingleCellSimulator=F_NoEF_long)
+    sols = F(n; θ..., U0=fill([p0, complex(0.0)],n), output_trajectory=true)
     λ = ElectroTaxis.get_λ(θ.ΔW_on, θ.ΔW_off)
     return mean(sol->T_off(sol; pbar=sqrt(λ-1)), sols)
 end
-
-Π(sol; pbar) = ispolarised(sol[end]; pbar=pbar)
 function Π(θ::NamedTuple; n=500)
     sols = F_NoEF_long(n; θ..., output_trajectory=true)
     λ = ElectroTaxis.get_λ(θ.ΔW_on, θ.ΔW_off)
     return mean(sol->Π(sol; pbar=sqrt(λ-1)), sols)
 end
+=#
+
+############## Time to switch on, off and long term polarised fraction
+T_on(θ::NamedTuple; kwargs...) = mean(get_dist(T_on, θ; kwargs...))
+T_off(θ::NamedTuple; kwargs...) = mean(get_dist(T_off, θ; p0=complex(1.0), kwargs...))
+Π(θ::NamedTuple; kwargs...) = mean(get_dist(Π, θ; kwargs...))
 
 export extend_outputs_NoEF, see_outputs_NoEF
 function extend_outputs_NoEF(; kwargs...)
@@ -314,6 +345,52 @@ end
 function see_outputs_NoEF()
     t = load_sample("./application/NoEF_SMC_extend.jld", merge(SingleCellModel, NamedTuple{(:T_on, :T_off, :Π), NTuple{3,Float64}}))[end]
     fig = parameterweights(t, columns=[1,5,6,7])
+    return fig
+end
+
+
+T_RL_switch(θ::NamedTuple; kwargs...) = mean(get_dist(T_RL, θ; p0=complex(1.0), F=F_RL_long, kwargs...))
+T_RL_stop(θ::NamedTuple; kwargs...) = mean(get_dist(T_RL, θ; p0=complex(1.0), kwargs...))
+
+goes_perp_switch(θ::NamedTuple; kwargs...) = mean(get_dist(goes_perp, θ; p0=complex(1.0), F=F_RL_long, kwargs...))
+goes_perp_stop(θ::NamedTuple; kwargs...) = mean(get_dist(goes_perp, θ; p0=complex(1.0), kwargs...))
+
+stays_polarised_switch(θ::NamedTuple; kwargs...) = mean(get_dist(stays_polarised, θ; p0=complex(1.0), F=F_RL_long, kwargs...))
+stays_polarised_stop(θ::NamedTuple; kwargs...) = mean(get_dist(stays_polarised, θ; p0=complex(1.0), kwargs...))
+
+BestModel = merge(SingleCellModel, VelocityBias, SpeedIncrease, PolarityBias)
+
+export extend_outputs_switch, see_outputs_switch
+function extend_outputs_switch(; kwargs...)
+    T = load_sample("./application/Joint_SMC_topup.jld", BestModel)
+    t = filter(posweight, T[end])
+    for func_name in (:T_RL_switch, :goes_perp_switch, :stays_polarised_switch)
+        println(func_name)
+        func(θ) = eval(func_name)(θ; kwargs...)
+        t = new_par(func_name, func, t)
+    end
+    save_sample("./application/switch_extend.jld", [t])
+end
+function see_outputs_switch()
+    t = load_sample("./application/switch_extend.jld", merge(BestModel, NamedTuple{(:A, :B, :C), NTuple{3,Float64}}))[end]
+    fig = parameterweights(t, columns=[1,8,9,10])
+    return fig
+end
+
+export extend_outputs_stop, see_outputs_stop
+function extend_outputs_stop(; kwargs...)
+    T = load_sample("./application/Joint_SMC_topup.jld", BestModel)
+    t = filter(posweight, T[end])
+    for func_name in (:T_RL_stop, :goes_perp_stop, :stays_polarised_stop)
+        println(func_name)
+        func(θ) = eval(func_name)(θ; kwargs...)
+        t = new_par(func_name, func, t)
+    end
+    save_sample("./application/stop_extend.jld", [t])
+end
+function see_outputs_stop()
+    t = load_sample("./application/stop_extend.jld", merge(BestModel, NamedTuple{(:A, :B, :C), NTuple{3,Float64}}))[end]
+    fig = parameterweights(t, columns=[1,8,9,10])
     return fig
 end
 
