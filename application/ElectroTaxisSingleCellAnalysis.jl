@@ -284,7 +284,8 @@ isRL(px; pbar) = (real(px[1]) < -abs(imag(px[1]))) && ispolarised(px; pbar=pbar)
 isperp(px; pbar) = (abs(imag(px[1]))>abs(real(px[1]))) && ispolarised(px; pbar=pbar)
 
 function hitting_time(boolfun, sol; kwargs...)
-    i = findfirst(x->boolfun(x; kwargs...), sol.u)
+    f(x) = boolfun(x; kwargs...)
+    i = any(f, sol.u) ? findfirst(f, sol.u) : length(sol.u)
     return sol.t[i]
 end
 function longterm(boolfun, sol; kwargs...)
