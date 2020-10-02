@@ -352,6 +352,9 @@ end
 T_RL_switch(θ::NamedTuple; kwargs...) = mean(get_dist(T_RL, θ; p0=complex(1.0), F=F_RL_long, kwargs...))
 T_RL_stop(θ::NamedTuple; kwargs...) = mean(get_dist(T_RL, θ; p0=complex(1.0), kwargs...))
 
+T_off_switch(θ::NamedTuple; kwargs...) = mean(get_dist(T_off, θ; p0=complex(1.0), F=F_RL_long, kwargs...))
+T_off_stop(θ::NamedTuple; kwargs...) = mean(get_dist(T_off, θ; p0=complex(1.0), kwargs...))
+
 goes_perp_switch(θ::NamedTuple; kwargs...) = mean(get_dist(goes_perp, θ; p0=complex(1.0), F=F_RL_long, kwargs...))
 goes_perp_stop(θ::NamedTuple; kwargs...) = mean(get_dist(goes_perp, θ; p0=complex(1.0), kwargs...))
 
@@ -364,7 +367,7 @@ export extend_outputs_switch, see_outputs_switch
 function extend_outputs_switch(; kwargs...)
     T = load_sample("./application/Joint_topup.jld", BestModel)
     t = filter(posweight, T[end])
-    for func_name in (:T_RL_switch, :goes_perp_switch, :stays_polarised_switch)
+    for func_name in (:T_RL_switch, :T_off_switch, :goes_perp_switch, :stays_polarised_switch)
         println(func_name)
         func(θ) = eval(func_name)(θ; kwargs...)
         t = new_par(func_name, func, t)
@@ -372,8 +375,8 @@ function extend_outputs_switch(; kwargs...)
     save_sample("./application/switch_extend.jld", [t])
 end
 function see_outputs_switch()
-    t = load_sample("./application/switch_extend.jld", merge(BestModel, NamedTuple{(:A, :B, :C), NTuple{3,Float64}}))[end]
-    fig = parameterweights(t, columns=[1,8,9,10])
+    t = load_sample("./application/switch_extend.jld", merge(BestModel, NamedTuple{(:Tm, :T0, :Pm0, :Py0), NTuple{4,Float64}}))[end]
+    fig = parameterweights(t, columns=[8,9,10,11])
     return fig
 end
 
@@ -381,7 +384,7 @@ export extend_outputs_stop, see_outputs_stop
 function extend_outputs_stop(; kwargs...)
     T = load_sample("./application/Joint_topup.jld", BestModel)
     t = filter(posweight, T[end])
-    for func_name in (:T_RL_stop, :goes_perp_stop, :stays_polarised_stop)
+    for func_name in (:T_RL_stop,:T_off_stop, :goes_perp_stop, :stays_polarised_stop)
         println(func_name)
         func(θ) = eval(func_name)(θ; kwargs...)
         t = new_par(func_name, func, t)
@@ -389,8 +392,8 @@ function extend_outputs_stop(; kwargs...)
     save_sample("./application/stop_extend.jld", [t])
 end
 function see_outputs_stop()
-    t = load_sample("./application/stop_extend.jld", merge(BestModel, NamedTuple{(:A, :B, :C), NTuple{3,Float64}}))[end]
-    fig = parameterweights(t, columns=[1,8,9,10])
+    t = load_sample("./application/stop_extend.jld", merge(BestModel, NamedTuple{(:Tm, :T0 :Pm0, :Py0), NTuple{4,Float64}}))[end]
+    fig = parameterweights(t, columns=[8,9,10,11])
     return fig
 end
 
