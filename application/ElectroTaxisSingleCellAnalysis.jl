@@ -397,6 +397,29 @@ function see_outputs_stop()
     return fig
 end
 
+export coarse_state
+function coarse_state()
+    Ω0 = Shape(0.6 .* cos.(π.*(0:0.01:2)), 0.6 .* sin.(π.*(0:0.01:2)))
+    Ωp = Shape([0, 2, 2], [0, 2, -2])
+    Ωm = Shape([0, -2, -2], [0, 2, -2])
+    Ωy = Shape([0, 2, -2, 0, 2, -2], [0, 2, 2, 0, -2, -2])
+
+    fig = plot(; ratio=:equal, xlims=(-1.5, 1.5), ylims=(-1.2, 1.2), xlabel=L"p_x", ylabel=L"p_y", title="Coarse-grained Polarity")
+    plot!(fig, [Ωp Ωm Ωy Ω0]; legend=:none) 
+    
+ #   label=[L"\Omega_+" L"\Omega_-" L"\Omega_\perp" L"\Omega_0"]
+    
+    scatter!(fig, [1], [0], markershape=:circle, markercolor=:black, label="")
+    
+    annotate!(fig, 1, 0.12, L"\mathbf{p}(90)")
+    annotate!(fig, 1, -0.24, L"\Omega_+")
+    annotate!(fig, -1, 0, L"\Omega_-")
+    annotate!(fig, 0, 1, L"\Omega_\perp")
+    annotate!(fig, 0, -1, L"\Omega_\perp")
+    annotate!(fig, 0, 0, L"\Omega_0")
+
+    return fig
+end
 
 ################################ SEE SELECTION
 
@@ -692,26 +715,7 @@ function coarse_step_figs(F, T, N::Int64=1000; dt::Float64=5.0, kwargs...)
     return fig
 end
 
-export coarse_state
-function coarse_state()
-    P2 = StatsPlots.Plots.P2
-    X1 = StatsPlots.Plots.partialcircle(0, 2π, 100, 0.6);
-    X2 = P2[(0,0), (5,5), (5,-5)]
-    X3a = P2[(0,0), (5,5), (-5,5)]
-    X3b = P2[(0,0), (-5,-5), (5,-5)]
-    X4 = P2[(0,0), (-5, 5), (-5, -5)]
 
-    fig = plot(; ratio=:equal, xlims=(-1.2, 1.2), ylims=(-1.2, 1.2), xlabel="x", ylabel="y", title="Coarse-grained Polarity")
-
-    plot!(fig, Shape(X2), fillcolor=3, label="Polarised positive")
-    plot!(fig, Shape(X3a), fillcolor=4, label="")
-    plot!(fig, Shape(X3b), fillcolor=4, label="Polarised perpendicular")
-    plot!(fig, Shape(X4), fillcolor=2, label="Polarised negative")
-    plot!(fig, Shape(X1), fillcolor=1, label="Depolarised")
-    plot!(fig, sin, cos, 0, 2π, color=:black, label="", linestyle=:dash)
-
-    return fig
-end
 
 export see_stationary_velocity
 function see_stationary_velocity(EMF, θ; kwargs...)
