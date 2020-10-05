@@ -444,10 +444,11 @@ function coarse_state(; kwargs...)
     
  #   label=[L"\Omega_+" L"\Omega_-" L"\Omega_\perp" L"\Omega_0"]
     
-    scatter!(fig, [1], [0], markershape=:circle, markercolor=:black, label="")
+#    scatter!(fig, [1], [0], markershape=:circle, markercolor=:black, label="")
     
-    annotate!(fig, 1, 0.12, L"\mathbf{p}(90)")
-    annotate!(fig, 1, -0.24, L"\Omega_+")
+#    annotate!(fig, 1, 0.12, L"\mathbf{p}(90)")
+#    annotate!(fig, 1, -0.24, L"\Omega_+")
+    annotate!(fig, 1, 0, L"\Omega_+")
     annotate!(fig, -1, 0, L"\Omega_-")
     annotate!(fig, 0, 1, L"\Omega_\perp")
     annotate!(fig, 0, -1, L"\Omega_\perp")
@@ -658,9 +659,11 @@ function polar_state(T, N::Int64=500; kwargs...)
     x_switch = [p_0.(t, Ref(sol_switch)) p_pos.(t, Ref(sol_switch)) p_neg.(t, Ref(sol_switch)) p_perp.(t, Ref(sol_switch))]
     x_stop = [p_0.(t, Ref(sol_stop)) p_pos.(t, Ref(sol_stop)) p_neg.(t, Ref(sol_stop)) p_perp.(t, Ref(sol_stop))]
 
-    fig_switch = plot(t, x_switch, xticks=[0, 90, 180], legend=:none, color=[4 1 2 3], title=L"\mathbf{u}_{\mathrm{switch}}")
-    fig_stop = plot(t, x_stop, xticks=[0,90,180], labels=[L"\Omega_0" L"\Omega_+" L"\Omega_-" L"\Omega_\perp"], color=[4 1 2 3], title=L"\mathbf{u}_{\mathrm{stop}}")
-    fig = plot(fig_switch, fig_stop; layout=(1,2), xlabel=L"t", ylabel="Fraction", kwargs...)
+    fig_switch = plot(t, x_switch;
+        xticks=[0, 90, 180], legend=:none, color=[4 1 2 3], title=L"\mathbf{u}_{\mathrm{switch}}", xlabel=L"t", ylabel="Fraction")
+    fig_stop = plot(t, x_stop;
+        xticks=[0,90,180], labels=[L"\Omega_0" L"\Omega_+" L"\Omega_-" L"\Omega_\perp"], color=[4 1 2 3], title=L"\mathbf{u}_{\mathrm{stop}}", xlabel=L"t", ylabel="Fraction")
+    fig = plot(coarse_state(), fig_switch, fig_stop; layout=(1,3), kwargs...)
     return fig
 end
 
