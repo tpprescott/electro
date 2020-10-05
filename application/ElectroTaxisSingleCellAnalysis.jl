@@ -375,9 +375,9 @@ function extend_outputs_switch(; kwargs...)
     end
     save_sample("./application/switch_extend.jld", [t])
 end
-function see_outputs_switch()
-    t = load_sample("./application/switch_extend.jld", merge(BestModel, NamedTuple{(:Tm, :T0, :Pm0, :Py0), NTuple{4,Float64}}))[end]
-    fig = parameterweights(t, columns=[8,9,10,11])
+function see_outputs_switch(; kwargs...)
+    t = load_sample("./application/switch_extend.jld", merge(BestModel, NamedTuple{(:T_m, :T_0, :P_y0, :P_m0), NTuple{4,Float64}}))[end]
+    fig = parameterweights(t; columns=[8,9,10,11], label=[L"\bar{T}_-" L"\bar{T}_0" L"P_{\perp,0}" L"P_{-,0}"], kwargs...)
     return fig
 end
 
@@ -392,14 +392,48 @@ function extend_outputs_stop(; kwargs...)
     end
     save_sample("./application/stop_extend.jld", [t])
 end
-function see_outputs_stop()
-    t = load_sample("./application/stop_extend.jld", merge(BestModel, NamedTuple{(:Tm, :T0 :Pm0, :Py0), NTuple{4,Float64}}))[end]
-    fig = parameterweights(t, columns=[8,9,10,11])
+function see_outputs_stop(; kwargs...)
+    t = load_sample("./application/stop_extend.jld", merge(BestModel, NamedTuple{(:T_m, :T_0, :P_y0, :P_m0), NTuple{4,Float64}}))[end]
+    fig = parameterweights(t; columns=[8,9,10,11], label=[L"\bar{T}_-" L"\bar{T}_0" L"P_{\perp,0}" L"P_{-,0}"],  kwargs...)
+    return fig
+end
+
+export see_hists
+function see_hists(; kwargs...)
+    
+    fn_sym = (:T_m, :T_0, :P_y0, :P_m0)
+    fn_lab = [L"\bar{T}_-" L"\bar{T}_0" L"P_{\perp,0}" L"P_{-,0}"]
+
+    t_switch = load_sample("./application/switch_extend.jld", merge(BestModel, NamedTuple{fn_sym, NTuple{4,Float64}}))[end]
+    t_stop = load_sample("./application/stop_extend.jld", merge(BestModel, NamedTuple{fn_sym, NTuple{4,Float64}}))[end]
+
+    w_switch = select(t_switch, :weight)
+    w_stop = select(t_stop, :weight)
+    
+    idx_of_interest = [2,1,4]
+    L = grid(2, 3);
+
+    fig = plot(; layout=L, legend=:none)
+    j=1
+    for sym in fn_sym[idx_of_interest]
+        x_switch = [r.θ[sym] for r in t_switch]
+        x_stop = [r.θ[sym] for r in t_stop]
+
+        histogram!(fig, x_switch, weights=w_switch, subplot=j, xlabel=fn_lab[idx_of_interest[j]], color=1)
+        histogram!(fig, x_stop, weights=w_stop, subplot=j+3, xlabel=fn_lab[idx_of_interest[j]], color=2)
+        j+=1
+    end
+
+    plot!(fig; title=L"\mathbf{u}_{\mathrm{switch}}", subplot = 2)
+    plot!(fig; title=L"\mathbf{u}_{\mathrm{stop}}", subplot = 5)
+    
+    plot!(fig; yticks=:none, link=:x, kwargs...)
+
     return fig
 end
 
 export coarse_state
-function coarse_state()
+function coarse_state(; kwargs...)
     Ω0 = Shape(0.6 .* cos.(π.*(0:0.01:2)), 0.6 .* sin.(π.*(0:0.01:2)))
     Ωp = Shape([0, 2, 2], [0, 2, -2])
     Ωm = Shape([0, -2, -2], [0, 2, -2])
@@ -419,6 +453,7 @@ function coarse_state()
     annotate!(fig, 0, -1, L"\Omega_\perp")
     annotate!(fig, 0, 0, L"\Omega_0")
 
+    plot!(fig; kwargs...)
     return fig
 end
 
@@ -564,59 +599,69 @@ using StatsPlots, Statistics
 const EMF_switch = StepEF(complex(1), complex(-1), 90)
 const EMF_stop = StepEF(complex(1), complex(0), 90)
 
-export F_switch, F_stop, step_figs
+export F_switch, F_stop, time_split
 const F_switch = SingleCellSimulator(σ_init=0.1, emf=EMF_switch)
 const F_stop = SingleCellSimulator(σ_init=0.1, emf=EMF_stop)
 
-function step_figs(F, T, N::Int64=5; kwargs...)
+function time_split(T, N::Int64=5; kwargs...)
 
-    fig_traj_1 = plot(legend=:none, link=:both, title="Displacement: 0 < t < 90min")
-    fig_traj_2 = plot(legend=:none, link=:both, title="Displacement: 90 < t < 180min")
-    fig_polarity_magnitude = plot(legend=:none, xticks=[0, 90, 180], title="Polarity: Magnitude", ylabel="abs(p)")
-    fig_polarity_angle = plot(xticks=[0, 90, 180], title="Polarity: Aligned Component", ylabel="cos(arg(p))")
-    fig_polarity_sinangle = plot(xticks=[0, 90, 180], title="Polarity: Perpendicular Component", xlabel="t", ylabel="abs(sin(arg(p)))")
+    fig_traj_1 = plot(legend=:none, title=L"\mathbf{u}_{\mathrm{switch}} ~:~ 0 < t < 90\mathrm{min}")
+    fig_traj_2 = plot(legend=:none, title=L"\mathbf{u}_{\mathrm{switch}} ~:~ 90 < t < 180\mathrm{min}")
+    fig_traj_3 = plot(legend=:none, title=L"\mathbf{u}_{\mathrm{stop}} ~:~ 0 < t < 90\mathrm{min}")
+    fig_traj_4 = plot(legend=:none, title=L"\mathbf{u}_{\mathrm{stop}} ~:~ 90 < t < 180\mathrm{min}")
 
-    sol = [F(; θgen(T)..., output_trajectory=true) for n in 1:(100*N)]
+    sol_switch = F_switch(100*N; θgen(T)..., output_trajectory=true)
+    sol_stop = F_stop(100*N; θgen(T)..., output_trajectory=true)
 
     for n in 1:N
-        fun_traj(t) = sol[n](t)[1]
-        fun_polarity_magnitude(t) = abs(sol[n](t)[2])
-        fun_polarity_angle(t) = fun_polarity_magnitude(t)<0.6 ? NaN : cos(angle(sol[n](t)[2]))
-        fun_polarity_sinangle(t) = fun_polarity_magnitude(t)<0.6 ? NaN : abs(sin(angle(sol[n](t)[2])))
+        fun_switch(t) = sol_switch[n](t)[2]
+        fun_stop(t) = sol_stop[n](t)[2]
 
-        plot!(fig_traj_1, fun_traj.(0:0.1:90), ratio=:equal, alpha=0.5, label="")
-        plot!(fig_traj_2, fun_traj.(90:0.1:180).-fun_traj(90), ratio=:equal, alpha=0.5, label="")
-        plot!(fig_polarity_magnitude, 0:1:180, fun_polarity_magnitude, alpha=0.5, label="")
-        plot!(fig_polarity_angle, 0:1:180, fun_polarity_angle, alpha=0.5, label="")
-        plot!(fig_polarity_sinangle, 0:1:180, fun_polarity_sinangle, alpha=0.5, label="")
+        plot!(fig_traj_1, fun_switch.(0:0.1:90), ratio=:equal, alpha=0.5, label="")
+        plot!(fig_traj_2, fun_switch.(90:0.1:180).-fun_switch(90), ratio=:equal, alpha=0.5, label="")
+        plot!(fig_traj_3, fun_stop.(0:0.1:90), ratio=:equal, alpha=0.5, label="")
+        plot!(fig_traj_4, fun_stop.(90:0.1:180).-fun_stop(90), ratio=:equal, alpha=0.5, label="")
     end
 
-    plot!(fig_polarity_magnitude, 0:1:180, t->abs(F.emf(t)), seriescolor=:black, label="EF Input")
-    plot!(fig_polarity_angle, 0:1:180, t->iszero(F.emf(t)) ? 0.0 : cos(angle(F.emf(t))), seriescolor=:black, label="EF Input")
-    plot!(fig_polarity_sinangle, 0:1:180, t->iszero(F.emf(t)) ? 0.0 : abs(sin(angle(F.emf(t)))), seriescolor=:black, label="EF Input")
+    mean_switch(t) = mean([sol_n(t)[2] for sol_n in sol_switch])
+    mean_stop(t) = mean([sol_n(t)[2] for sol_n in sol_stop])
 
-    mean_traj(t) = mean([sol_n(t)[1] for sol_n in sol])
-    mean_polarity_magnitude(t) = mean([abs(sol_n(t)[2]) for sol_n in sol])
-    mean_polarity_angle(t) = mean([cos(angle(sol_n(t)[2])) for sol_n in sol if abs(sol_n(t)[2])>0.6])
-    mean_polarity_sinangle(t) = mean([abs(sin(angle(sol_n(t)[2]))) for sol_n in sol if abs(sol_n(t)[2])>0.6])
+    plot!(fig_traj_1, mean_switch.(0:0.1:90), ratio=:equal, seriescolor=:red, label="Ensemble average")
+    plot!(fig_traj_2, mean_switch.(90:0.1:180).-mean_switch(90), ratio=:equal, seriescolor=:red, label="Ensemble average")
+    plot!(fig_traj_3, mean_stop.(0:0.1:90), ratio=:equal, seriescolor=:red, label="Ensemble average")
+    plot!(fig_traj_4, mean_stop.(90:0.1:180).-mean_stop(90), ratio=:equal, seriescolor=:red, label="Ensemble average")
 
-    plot!(fig_traj_1, mean_traj.(0:0.1:90), ratio=:equal, seriescolor=:red, label="Ensemble average")
-    plot!(fig_traj_2, mean_traj.(90:0.1:180).-mean_traj(90), ratio=:equal, seriescolor=:red, label="Ensemble average")
-    plot!(fig_polarity_magnitude, 0:1:180, mean_polarity_magnitude, seriescolor=:red, label="Ensemble average")
-    plot!(fig_polarity_angle, 0:1:180, mean_polarity_angle, seriescolor=:red, label="Ensemble average", legend=:none)
-    plot!(fig_polarity_sinangle, 0:1:180, mean_polarity_sinangle, seriescolor=:red, label="Ensemble average", legend=:left)
+    fig = plot(fig_traj_1, fig_traj_2, fig_traj_3, fig_traj_4, layout = (2,2), ratio=:equal, xlabel=L"x", ylabel=L"y")
+    plot!(fig; link=:all, kwargs...)
+    return fig
 
-#    endpoints_1 = [sol_n(90)[1] for sol_n in sol]
-#    endpoints_2 = [sol_n(180)[1]-sol_n(90)[1] for sol_n in sol]
+    #    return plot(fig_traj, fig_polarity_magnitude, fig_polarity_angle, fig_polarity_sinangle;
+    #    layout=(4,1), size=(800, 600), kwargs...)
+end
 
-#    plot!(fig_traj_1, real.(endpoints_1), imag.(endpoints_1),
-#        seriestype=:scatter, markershape=:xcross, markeralpha=0.3, markersize=1, markercolor=:red, label="")
-#    plot!(fig_traj_2, real.(endpoints_2), imag.(endpoints_2),
-#        seriestype=:scatter, markershape=:xcross, markeralpha=0.3, markersize=1, markercolor=:red, label="")
+function polar_state(T, N::Int64=500; kwargs...)
 
-    fig_traj = plot(fig_traj_1, fig_traj_2, layout = (1,2), link=:all, ratio=:equal, xlabel="x", ylabel="y")
-    return plot(fig_traj, fig_polarity_magnitude, fig_polarity_angle, fig_polarity_sinangle;
-    layout=(4,1), size=(800, 600), kwargs...)
+    θ = θgen(T)
+    λ = ElectroTaxis.get_λ(θ.ΔW_on, θ.ΔW_off)
+    pbar = sqrt(λ-1)
+
+    sol_switch = F_switch(N; θ..., output_trajectory=true)
+    sol_stop = F_stop(N; θ..., output_trajectory=true)
+
+    p_0(t, sol_vec) = mean([isdepolarised(sol_n(t), pbar=pbar) for sol_n = sol_vec])
+    p_pos(t, sol_vec) = mean([isLR(sol_n(t), pbar=pbar) for sol_n = sol_vec])
+    p_neg(t, sol_vec) = mean([isRL(sol_n(t), pbar=pbar) for sol_n = sol_vec])
+    p_perp(t, sol_vec) = mean([isperp(sol_n(t), pbar=pbar) for sol_n = sol_vec])
+
+    t = 0:0.2:180
+
+    x_switch = [p_0.(t, Ref(sol_switch)) p_pos.(t, Ref(sol_switch)) p_neg.(t, Ref(sol_switch)) p_perp.(t, Ref(sol_switch))]
+    x_stop = [p_0.(t, Ref(sol_stop)) p_pos.(t, Ref(sol_stop)) p_neg.(t, Ref(sol_stop)) p_perp.(t, Ref(sol_stop))]
+
+    fig_switch = plot(t, x_switch, xticks=[0, 90, 180], legend=:none, color=[4 1 2 3], title=L"\mathbf{u}_{\mathrm{switch}}")
+    fig_stop = plot(t, x_stop, xticks=[0,90,180], labels=[L"\Omega_0" L"\Omega_+" L"\Omega_-" L"\Omega_\perp"], color=[4 1 2 3], title=L"\mathbf{u}_{\mathrm{stop}}")
+    fig = plot(fig_switch, fig_stop; layout=(1,2), xlabel=L"t", ylabel="Fraction", kwargs...)
+    return fig
 end
 
 export coarse
