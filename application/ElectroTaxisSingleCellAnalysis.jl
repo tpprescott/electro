@@ -343,9 +343,9 @@ function extend_outputs_NoEF(; kwargs...)
     end
     save_sample("./application/NoEF_SMC_extend.jld", [t])
 end
-function see_outputs_NoEF()
+function see_outputs_NoEF(; kwargs...)
     t = load_sample("./application/NoEF_SMC_extend.jld", merge(SingleCellModel, NamedTuple{(:T_on, :T_off, :Π), NTuple{3,Float64}}))[end]
-    fig = parameterweights(t, columns=[1,5,6,7])
+    fig = parameterweights(t; columns=[1,5,6,7], kwargs...)
     return fig
 end
 
@@ -439,7 +439,7 @@ function coarse_state(; kwargs...)
     Ωm = Shape([0, -2, -2], [0, 2, -2])
     Ωy = Shape([0, 2, -2, 0, 2, -2], [0, 2, 2, 0, -2, -2])
 
-    fig = plot(; ratio=:equal, xlims=(-1.5, 1.5), ylims=(-1.2, 1.2), xlabel=L"p_x", ylabel=L"p_y", title="Coarse-grained Polarity")
+    fig = plot(; ratio=:equal, xlims=(-1.5, 1.5), ylims=(-1.5, 1.5), xlabel=L"p_x", ylabel=L"p_y", title="Coarse-grained Polarity")
     plot!(fig, [Ωp Ωm Ωy Ω0]; legend=:none) 
     
  #   label=[L"\Omega_+" L"\Omega_-" L"\Omega_\perp" L"\Omega_0"]
@@ -544,15 +544,15 @@ function visualise(F, T, N)
         sol_n = F(; θ..., output_trajectory=true)[1]
         plot!(fig, broadcast(t->sol_n(t)[2], F.saveat))
     end
-    plot!(fig; legend=:none, ratio=:equal, framestyle=:origin, xlabel="x", ylabel="y")
+    plot!(fig; legend=:none, ratio=:equal, framestyle=:origin, xlabel=L"x", ylabel=L"y")
     return fig
 end
 function visualise(y_obs)
     fig = plot()
     for traj in y_obs
-        plot!(fig, traj)
+        plot!(fig, real.(traj), imag.(traj))
     end
-    plot!(fig; legend=:none, ratio=:equal, framestyle=:origin, xlabel="x", ylabel="y")
+    plot!(fig; legend=:none, ratio=:equal, framestyle=:origin, xlabel=L"x", ylabel=L"y")
     return fig
 end
 
@@ -562,14 +562,14 @@ function compare_data_NoEF()
     θ = θbar(T)
     data_NoEF = visualise(NoEF_trajectories)
     common_NoEF = visualise(F_NoEF, θ, 50)
-    dist_NoEF = visualise(F_NoEF, T, 50)
+#    dist_NoEF = visualise(F_NoEF, T, 50)
     plot(
         data_NoEF,
         common_NoEF,
-        dist_NoEF,
-        layout=(1,3),
+#        dist_NoEF,
+        layout=(1,2),
         link=:all,
-        size=(900,300),
+        size=(600,300),
     )
 end
 
@@ -808,12 +808,12 @@ function compare_stationary_velocity()
     fig_on = see_stationary_velocity(EMF_on, pars)
 
     plot!(fig_off; title="Autonomous model",
-    xticks = ([0, 1].*pars.v, ["0","v"]),
-    yticks = ([0, 1].*pars.v, ["0","v"]),
+    xticks = ([0, 1].*pars.v, [L"0", L"v"]),
+    yticks = ([0, 1].*pars.v, [L"0", L"v"]),
     )
     plot!(fig_on; title="Electrotactic model",
-    xticks = (([-(1+pars.γ2-pars.γ3), 0, (1+pars.γ2+pars.γ3)].*pars.v) .+ (pars.γ1*pars.v), ["γ1 v - (1+γ2-γ3)v", "γ1 v","γ1 v + (1+γ2+γ3)v"]),
-    yticks = ([0, 1].*pars.v*(1+pars.γ2), ["0","(1+γ2) v"]),
+    xticks = (([-(1+pars.γ2-pars.γ3), 0, (1+pars.γ2+pars.γ3)].*pars.v) .+ (pars.γ1*pars.v), [L"\gamma_1 v - (1 + \gamma_2 - \gamma_3) v", L"\gamma_1 v", L"\gamma_1 v + (1 + \gamma_2 + \gamma_3) v"]),
+    yticks = ([0, 1].*pars.v*(1+pars.γ2), [L"0",L"(1 + \gamma_2) v"]),
     )
 
     line_opt = (label="", c=:black,)
@@ -823,7 +823,7 @@ function compare_stationary_velocity()
     vline!(fig_off, [0.0]; line_opt...)
 
     plot!(fig_on, xrotation=45)
-    fig = plot(fig_off, fig_on, layout=(1,2), legend=:none, tickfontsize=6, tickfonthalign=:right)
+    fig = plot(fig_off, fig_on, layout=(1,2), legend=:none, tickfontsize=10, tickfonthalign=:right)
     return fig
 
 end

@@ -53,10 +53,10 @@ end
             weights := w
             grid := false
             #xformatter --> ((i == n) ? :auto : (x -> ""))
+            yticks --> []
             yformatter := (y -> "")
             update_axes_guides(plotattributes, labs, lims, i, i, n)
             view(mat,:,i)
-#            yticks := []
         end
     end
 
