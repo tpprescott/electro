@@ -557,7 +557,7 @@ function visualise(y_obs)
 end
 
 function compare_data_NoEF()
-    Θ = merge(SingleCellModel)
+    Θ = SingleCellModel
     T = load_sample("./application/NoEF_SMC.jld", Θ)[end]
     θ = θbar(T)
     data_NoEF = visualise(NoEF_trajectories)
@@ -575,18 +575,16 @@ end
 
 
 function compare_data_EF()
-    Θ = merge(SingleCellModel, SpeedChange, PolarityBias, PositionBias)
-    T = load_sample("./application/Joint_SMC.jld", Θ)[end]
+    Θ = BestModel
+    T = load_sample("./application/Joint_topup.jld", Θ)[end]
     θ = θbar(T)
     data_NoEF = visualise(NoEF_trajectories)
     data_EF = visualise(EF_trajectories)
     common_NoEF = visualise(F_NoEF, θ, 50)
     common_EF = visualise(F_EF, θ, 50)
-    dist_NoEF = visualise(F_NoEF, T, 50)
-    dist_EF = visualise(F_EF, T, 50)
 
-    fig_NoEF = plot(data_NoEF, common_NoEF, dist_NoEF, layout=(1,3), link=:all)
-    fig_EF = plot(data_EF, common_EF, dist_EF, layout=(1,3), link=:all)
+    fig_NoEF = plot(data_NoEF, common_NoEF, layout=(1,2), link=:all)
+    fig_EF = plot(data_EF, common_EF, layout=(1,2), link=:all)
     fig = plot(
         fig_NoEF,
         fig_EF,
