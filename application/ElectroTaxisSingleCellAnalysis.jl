@@ -810,8 +810,8 @@ function compare_stationary_velocity()
     yticks = ([0, 1].*pars.v, [L"0", L"v"]),
     )
     plot!(fig_on; title="Electrotactic model",
-    xticks = (([-(1+pars.γ2-pars.γ3), 0, (1+pars.γ2+pars.γ3)].*pars.v) .+ (pars.γ1*pars.v), [L"\gamma_1 v - (1 + \gamma_2 - \gamma_3) v", L"\gamma_1 v", L"\gamma_1 v + (1 + \gamma_2 + \gamma_3) v"]),
-    yticks = ([0, 1].*pars.v*(1+pars.γ2), [L"0",L"(1 + \gamma_2) v"]),
+    xticks = (([-(1+pars.γ2-pars.γ3), 0, (1+pars.γ2+pars.γ3)].*pars.v) .+ (pars.γ1*pars.v), [L"\Gamma_1 v - (1 + \Gamma_2 - \Gamma_3) v", L"\Gamma_1 v", L"\Gamma_1 v + (1 + \Gamma_2 + \Gamma_3) v"]),
+    yticks = ([0, 1].*pars.v*(1+pars.γ2), [L"0",L"(1 + \Gamma_2) v"]),
     )
 
     line_opt = (label="", c=:black,)
