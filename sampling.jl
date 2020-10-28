@@ -18,15 +18,23 @@ function Distributions.sample(prob::InferenceProblem, n::Int; max_batch::Int=n*1
         prob.synthetic_likelihood,
         prob.prior,
         prob.importance,
-        prob.batch_size,
     )
     
-    b = InferenceBatch(args...; synthetic_likelihood_n=prob.synthetic_likelihood_n)
-    while (length(b) < max_batch) && (count(isaccepted(b, temp=prob.temperature)) < n)
+    n_inc = prob.batch_size
+    b = InferenceBatch(args..., n_inc; synthetic_likelihood_n=prob.synthetic_likelihood_n)
+    A_next = count(isaccepted(b, temp=prob.temperature))
+
+    while (length(b) < max_batch)
         L = length(b)
-        A = count(isaccepted(b, temp=prob.temperature))
+        A = A_next
         @info "$A accepted from $L proposals;"
-        InferenceBatch(b, args...; synthetic_likelihood_n=prob.synthetic_likelihood_n)
+        InferenceBatch(b, args..., n_inc; synthetic_likelihood_n=prob.synthetic_likelihood_n)
+        A_next = count(isaccepted(b, temp=prob.temperature))
+        if A_next <= A
+            n_inc += prob.batch_size
+        elseif A_next >= n
+            break
+        end
     end
     I = isaccepted(b, temp=prob.temperature)
     return b, I
