@@ -3,6 +3,10 @@ export get_options
 export summarise, summarise!
 export InferenceSummary
 
+export AnalysisSummary, HittingTime
+export T_polarise, T_depolarise, T_neg, T_pos, T_perp
+export IsPolarised
+
 abstract type AbstractSummary end
 function Base.length(::AbstractSummary) 
     error("Implement 'Base.length' for the summary statistic!")
@@ -68,4 +72,64 @@ function (Y::InferenceSummary)(y, x::AbstractVector{ComplexF64})
     y[3] = std(broadcast(abs, dx))
     y[4] = atan(imag(td), real(td))
     y
+end
+
+############################
+# FOR analysis
+############################
+
+abstract type AnalysisSummary <: AbstractSummary end
+abstract type HittingTime <: AnalysisSummary end
+
+struct T_polarise <: HittingTime
+    pbar::Float64
+end
+struct T_depolarise <: HittingTime
+    pbar::Float64
+end
+struct T_perp <: HittingTime
+    pbar::Float64
+end
+struct T_neg <: HittingTime
+    pbar::Float64
+end
+struct T_pos <: HittingTime
+    pbar::Float64
+end
+
+Base.length(::AnalysisSummary)=1
+Base.eltype(::AnalysisSummary)=Float64
+get_options(::AnalysisSummary)=(save_idxs=1,)
+
+ishit(Y::HittingTime, p::ComplexF64) = Y(p)
+function (Y::HittingTime)(sol)
+    getindex(sol.t, findfirst(p->ishit(Y,p), sol.u))
+end
+function (Y::HittingTime)(y, sol)
+    y[1] = Y(sol)
+end
+
+function _make_callback(Y::HittingTime)
+    condition(u,t,integrator) = ishit(Y, u[1])
+    affect!(integrator) = terminate!(integrator)
+    cb = DiscreteCallback(condition, affect!)
+end
+get_options(Y::HittingTime) = (save_idxs=1, callback=_make_callback(Y))
+
+(Y::T_polarise)(p::ComplexF64) = abs(p)>Y.pbar
+(Y::T_depolarise)(p::ComplexF64) = abs(p)<=Y.pbar
+(Y::T_perp)(p::ComplexF64) = (abs(p)>Y.pbar)&&(abs(imag(p))>abs(real(p)))
+(Y::T_pos)(p::ComplexF64) = (abs(p)>Y.pbar)&&(abs(imag(p))<real(p))
+(Y::T_neg)(p::ComplexF64) = (abs(p)>Y.pbar)&&(-abs(imag(p))>real(p))
+
+###########
+
+struct IsPolarised <: AnalysisSummary
+    pbar::Float64
+    t_inf::Float64
+end
+
+(Π::IsPolarised)(sol) = abs(sol(Π.t_inf))>Π.pbar
+function (Π::IsPolarised)(y, sol)
+    y[1] = Π(sol)
 end
