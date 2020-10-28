@@ -6,6 +6,7 @@ using DifferentialEquations
 using DataFrames, CSV
 using Distributed, ProgressMeter
 using HDF5
+using RecipesBase, LaTeXStrings
 
 export rand, pdf, logpdf, sample, mean
 
@@ -19,6 +20,7 @@ include("conditional_expectations.jl")
 include("inference_batch.jl")
 include("sampling.jl")
 include("io.jl")
+include("recipes.jl")
 
 export par_names, par_names_NoEF
 export prior_support
