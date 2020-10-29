@@ -31,7 +31,7 @@ function Distributions.sample(prob::InferenceProblem, n::Int; max_batch::Int=n*1
         InferenceBatch(b, args..., n_inc; synthetic_likelihood_n=prob.synthetic_likelihood_n)
         A_next = count(isaccepted(b, temp=prob.temperature))
         if A_next <= A
-            n_inc += prob.batch_size
+            n_inc *= 2
         elseif A_next >= n
             break
         end
@@ -63,8 +63,9 @@ function Distributions.sample(prob::SMCProblem{N}, n::NTuple{N, Int}; max_batch:
 
         if t<N
             q_t = Importance(b[I])
+        else
+            return b, I
         end
     end
-    return b[I]
 end
 Distributions.sample(prob::SMCProblem{N}, n::Int; max_batch::Int=n*10000) where N = sample(prob, Tuple(fill(n,N)), max_batch=Tuple(fill(max_batch,N)))
