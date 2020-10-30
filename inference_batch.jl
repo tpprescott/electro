@@ -2,39 +2,132 @@ export InferenceBatch
 export isaccepted
 export loglikelihood
 
+export get_log_sl, ESS
+export resample!, perturb!
+export smc_step, smc
+
 mutable struct InferenceBatch{Names, P<:Parameters{Names,2}}
     θ::P
-    log_π::Vector{Float64}
-    log_q::Vector{Float64}
+    ell::Vector{Float64}
     log_sl::Vector{Float64}
-    log_u::Vector{Float64}
+    function InferenceBatch(N::Int, π::ParameterDistribution{Names}) where Names 
+        θ = Parameters(π, N)
+        P = typeof(θ)
+        ell = fill(1/N, N)
+        log_sl = zeros(N)
+        new{Names, P}(θ, ell, log_sl)
+    end
 end
-Base.length(b::InferenceBatch) = length(b.log_π)
+Base.length(b::InferenceBatch) = length(b.ell)
 function Base.append!(B1::InferenceBatch, B2::InferenceBatch)
     B1.θ = hcat(B1.θ, B2.θ)
-    append!(B1.log_π, B2.log_π)
-    append!(B1.log_q, B2.log_q)
-    append!(B1.log_sl, B2.log_sl)
-    append!(B1.log_u, B2.log_u)
+    append!(B1.ell, B2.ell)
     B1
 end
 function Base.getindex(b::InferenceBatch{Names}, I) where Names
     Parameters(selectdim(b.θ, 2, I), Names)
 end
 
-isaccepted(ell::Float64, log_u::Float64, max_ell::Float64) = log_u < ell-max_ell 
-function isaccepted(b::InferenceBatch; temp::Real=1.0)
-    0 <= temp <= 1 || error("Tempering between 0 and 1 inclusive, 1 for no tempering")
-    ell = temp.*b.log_sl .+ b.log_π .- b.log_q
-    ell_max = maximum(ell)
-    broadcast(isaccepted, ell, b.log_u, Ref(ell_max))
+##################
+# SMC: Step and wrapper
+##################
+function smc(L::SyntheticLogLikelihood, π::ParameterDistribution, N::Int, K::MvNormal; N_T::Int, kwargs...)
+    B = InferenceBatch(N, π)
+    temperature = Float64(0)
+    gen=0
+    while true
+        get +=1 
+        Δt, ess = smc_step(B, L, π, temperature; kwargs...)
+        temperature += Δt
+        @info "Generation: $(gen). Temperature: $(temperature). ESS: $(ess)."
+        
+        if temperature >= 1
+            return B
+        end
+        ess<N_T ? resample!(B) : perturb!(B, K)
+    end
 end
 
-# Initialise empty batch
-function InferenceBatch(π::ParameterDistribution)
-    P = Parameters(π, 0)
-    B0 = InferenceBatch(P, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Float64}())
+function smc_step(
+    B::InferenceBatch, 
+    L::SyntheticLogLikelihood, 
+    π::ParameterDistribution,
+    temperature;
+    alpha=0.9,
+    synthetic_likelihood_n=500,
+    Δt_min=0.001,
+)
+
+    0<=temperature<1 || error("Temperature must be between zero and 1")
+    # Index so only working with live particles 
+    isalive = insupport(π, B.θ)
+
+    # Update the log synthetic likelihoods of the current parameters
+    B.log_sl .= get_log_sl(L, ParameterSet(B.θ), isalive, synthetic_likelihood_n)
+    
+    # Find the change in temperature to reduce ESS by factor of alpha<1
+    test_ell = similar(B.ell)
+    ESS_now = _ESS(B.ell)
+    f(Δtemp) = alpha*ESS_now - _ESS(test_ell, B.ell, B.log_sl, Δtemp)
+    
+    Δt_max = 1-temperature
+
+    Δt = if f(Δt_max) <= 0
+        Δt_max
+    elseif f(Δt_min) > 0
+        Δt_min
+    else
+        fzero(f, Δt_min, Δt_max)
+    end
+
+    Δt, _ESS(B.ell, B.ell, B.log_sl, Δt)
 end
+
+
+##################
+# SMC: Helper functions
+##################
+
+# The expensive helper function
+function get_log_sl(L::SyntheticLogLikelihood, θ::ParameterSet, isalive, n::Int) where Names
+    f(a,θ_i) = a ? L(θ_i, n=n) : -Inf
+    log_sl = @showprogress pmap(f, isalive, θ)
+end
+
+# The other functions
+function _ESS(ell)
+    ell .-= maximum(ell)
+    sum(exp, ell)^2/sum(exp, 2.0 .* ell)
+end
+function _ESS(ell_next, ell, log_sl, Δtemp)
+    @. ell_next = ell + (Δtemp * log_sl)
+    _ESS(ell_next)
+end
+ESS(B::InferenceBatch) = _ESS(B.ell)
+
+
+function resample!(B::InferenceBatch{Names}) where Names
+
+    N = length(B)
+    B.ell .-= maximum(B.ell)
+
+    W = Weights(exp.(B.ell))
+    I = sample(1:N, W, N)
+    θ_new = B.θ[:,I]
+    B.θ = Parameters(θ_new, Names)
+
+    B.ell .= 1/N
+    B
+end
+
+function perturb!(B, K::MvNormal)
+    N = length(B)
+    Δθ = rand(K, N)
+    B.θ.θ .+= Δθ
+    B
+end
+
+
 
 # Produce new batches
 function InferenceBatch(

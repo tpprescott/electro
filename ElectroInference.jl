@@ -1,10 +1,11 @@
 module ElectroInference
 
 using Distributions, Random, Combinatorics, InvertedIndices
-using Statistics
+using Statistics, StatsBase
 using DifferentialEquations
 using DataFrames, CSV
 using Distributed, ProgressMeter
+using Roots
 using HDF5
 using RecipesBase, LaTeXStrings
 
