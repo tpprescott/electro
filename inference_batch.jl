@@ -32,20 +32,30 @@ end
 ##################
 # SMC: Step and wrapper
 ##################
-function smc(L::SyntheticLogLikelihood, π::ParameterDistribution, N::Int, K::MvNormal; N_T::Int, kwargs...)
+function smc(L::SyntheticLogLikelihood, π::ParameterDistribution{Names}, N::Int; N_T::Int, kwargs...) where Names
     B = InferenceBatch(N, π)
     temperature = Float64(0)
     gen=0
+
+    dim = length(Names)
+    base_cov = zeros(dim, dim)
+    base_cov += 0.1 * LinearAlgebra.I
+    Σ = similar(base_cov)
+
     while true
-        get +=1 
+        gen +=1
         Δt, ess = smc_step(B, L, π, temperature; kwargs...)
         temperature += Δt
         @info "Generation: $(gen). Temperature: $(temperature). ESS: $(ess)."
-        
+
         if temperature >= 1
             return B
         end
-        ess<N_T ? resample!(B) : perturb!(B, K)
+
+        W = Weights(exp.(B.ell))
+        parameter_cov = cov(B.θ.θ, W, 2)
+        _interpolate_covariance!(Σ, base_cov, parameter_cov, temperature)
+        ess<N_T ? resample!(B) : perturb!(B, MvNormal(Σ))
     end
 end
 
@@ -56,7 +66,7 @@ function smc_step(
     temperature;
     alpha=0.9,
     synthetic_likelihood_n=500,
-    Δt_min=0.001,
+    Δt_min=1e-5,
 )
 
     0<=temperature<1 || error("Temperature must be between zero and 1")
@@ -105,6 +115,10 @@ function _ESS(ell_next, ell, log_sl, Δtemp)
     _ESS(ell_next)
 end
 ESS(B::InferenceBatch) = _ESS(B.ell)
+
+function _interpolate_covariance!(cov, cov_1, cov_2, λ)
+    @. cov = (1-λ)*cov_1 + λ*cov_2
+end
 
 
 function resample!(B::InferenceBatch{Names}) where Names

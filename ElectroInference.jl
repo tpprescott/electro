@@ -5,7 +5,7 @@ using Statistics, StatsBase
 using DifferentialEquations
 using DataFrames, CSV
 using Distributed, ProgressMeter
-using Roots
+using Roots, LinearAlgebra
 using HDF5
 using RecipesBase, LaTeXStrings
 
@@ -19,7 +19,6 @@ include("stochastic_simulations.jl")
 include("synthetic_likelihoods.jl")
 include("conditional_expectations.jl")
 include("inference_batch.jl")
-include("sampling.jl")
 include("io.jl")
 include("recipes.jl")
 
