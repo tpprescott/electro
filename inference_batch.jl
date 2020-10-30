@@ -10,14 +10,15 @@ mutable struct InferenceBatch{Names, P<:Parameters{Names,2}}
     θ::P
     ell::Vector{Float64}
     log_sl::Vector{Float64}
-    function InferenceBatch(N::Int, π::ParameterDistribution{Names}) where Names 
-        θ = Parameters(π, N)
-        P = typeof(θ)
-        ell = fill(1/N, N)
-        log_sl = zeros(N)
-        new{Names, P}(θ, ell, log_sl)
-    end
 end
+function InferenceBatch(N::Int, π::ParameterDistribution{Names}) where Names 
+    θ = Parameters(π, N)
+    P = typeof(θ)
+    ell = fill(1/N, N)
+    log_sl = zeros(N)
+    InferenceBatch(θ, ell, log_sl)
+end
+
 Base.length(b::InferenceBatch) = length(b.ell)
 function Base.append!(B1::InferenceBatch, B2::InferenceBatch)
     B1.θ = hcat(B1.θ, B2.θ)
@@ -126,56 +127,3 @@ function perturb!(B, K::MvNormal)
     B.θ.θ .+= Δθ
     B
 end
-
-
-
-# Produce new batches
-function InferenceBatch(
-    L::SyntheticLogLikelihood,
-    π::ParameterDistribution{Names}, 
-    args...;
-    kwargs...
-) where Names
-
-    B0 = InferenceBatch(π)
-    InferenceBatch(B0, L, π, args...; kwargs...)
-end
-
-# Increment a batch by N
-function InferenceBatch(
-    B::InferenceBatch,
-    L::SyntheticLogLikelihood,
-    π::ParameterDistribution{Names}, 
-    q::ParameterDistribution{Names}, 
-    N::Int=0;
-    synthetic_likelihood_n::Int=500,
-) where Names
-
-    P = Parameters(q, N)
-    B.θ = hcat(B.θ, P)
-
-    append!(B.log_π, logpdf(π, P))
-    append!(B.log_q, logpdf(q, P))
-    append!(B.log_u, log.(rand(N)))
-
-    I = insupport(π, P)
-    function f(i,θ)::Float64
-        i ? L(θ, n=synthetic_likelihood_n) : -Inf
-    end
-    
-    log_sl_inc::Vector{Float64} = @showprogress pmap(f, I, ParameterSet(P))
-    append!(B.log_sl, log_sl_inc)
-    
-    B
-end
-
-function InferenceBatch(B::InferenceBatch, L::SyntheticLogLikelihood, π::ParameterDistribution, N::Int=0; synthetic_likelihood_n::Int=500)
-    InferenceBatch(B, L, π, π, N; synthetic_likelihood_n=synthetic_likelihood_n)
-end
-
-function Distributions.loglikelihood(B::InferenceBatch)
-    ell = B.log_sl + B.log_π - B.log_q
-    max_ell = maximum(ell)
-    return max_ell + log(mean(exp, ell.-max_ell))
-end
-
