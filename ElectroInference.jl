@@ -39,7 +39,7 @@ const prior_support = [
     Uniform(0,3),
     Uniform(0,5),
     Uniform(0,5),
-    Uniform(0,1),
+    Uniform(0,0.5),
     Uniform(0,2),
     Uniform(0,2),
     Uniform(0,2),
