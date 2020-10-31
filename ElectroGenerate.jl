@@ -11,17 +11,10 @@ const t = Tuple((2.0.^(1:10))./1024)
 const sample_size = 100
 
 # Start with NoEF
-function Posterior_NoEF(
-    fn::String="electro_data";
-    batch_sizes=b_s,
-    n_synthetic_likelihoods=n_s_l,
-    temperatures=t,
-    kwargs...
-)
-    smc_NoEF = SMCProblem(L_NoEF(), Prior(), batch_sizes, n_synthetic_likelihoods, temperatures)
-    b, I = sample(smc_NoEF, sample_size)
-    save(b, L_NoEF, fn)
-    return b, I
+function Posterior_NoEF()
+    b = smc(L_NoEF(), Prior(), 2000, N_T=1000, alpha=0.8, Δt_min=1e-2)
+    save(b, L_NoEF)
+    return b
 end
 
 # Set up the intermediate prior based on the NoEF output and evaluated against EF only
