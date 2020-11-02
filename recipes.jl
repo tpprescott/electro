@@ -21,14 +21,26 @@ const par_titles = (
 )
 
 
+# Plot a parameter set as a parameter row
 @recipe function f(P::Parameters)
     P, Base.OneTo(size(P,1))
 end
-
 @recipe function f(P::Parameters, I)
     ParameterRow((P, I))
 end
+# Inference batch is a weighted parameter set
+@recipe function f(B::InferenceBatch, I...)
+    ell_max = maximum(B.ell)
+    w = exp.(B.ell .- ell_max)
+    weights := w
+    if length(I)>1 
+        seriescolor --> :Blues_6
+    end
+    return (B.θ, I...)
+end
 
+
+# Individual subplots - 1D historgram
 @recipe function f(P::Parameters, I::Int)
     xguide --> par_str[I]
     xlims --> (minimum(prior_support[I]), maximum(prior_support[I]))
@@ -40,6 +52,7 @@ end
     selectdim(P.θ, 1, I)
 end
 
+# Individual subplots - 2D scatter (as default) or histogram
 @recipe function f(P::Parameters, I::Int, J::Int)
     xguide --> par_str[I]
     yguide --> par_str[J]
@@ -52,6 +65,8 @@ end
 end
 
 #@userplot ParameterGrid
+
+# Define ParameterRow
 @userplot ParameterRow
 @recipe function f(g::ParameterRow)
     # g.args are the arguments - parameter matrix and vector of indices
@@ -70,22 +85,4 @@ end
         end
     end
 end
-
-@recipe function f(B::InferenceBatch, I...; weighted=false, temperature=1.0, accept_fun = B->isaccepted(B, temp=temperature) )
-    if weighted
-        weights = B.log_π - B.log_q + temperature*B.log_sl
-        weights .-= maximum(weights)
-        broadcast!(exp, weights, weights)
-        weights := weights
-        if length(I)>1 
-            c --> :Blues_6
-        end
-        return (B.θ, I...)
-    else
-        I = accept_fun(B)
-        return (B[I], I...)
-    end
-end
-
-
 
