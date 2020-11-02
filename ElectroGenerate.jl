@@ -12,7 +12,7 @@ const sample_size = 100
 
 # Start with NoEF
 function Posterior_NoEF()
-    b = smc(L_NoEF(), Prior(), 2000, N_T=1000, alpha=0.8, Δt_min=1e-2)
+    b = smc(L_NoEF(), Prior(), 5000, N_T=2000, alpha=0.8, Δt_min=1e-2)
     save(b, L_NoEF)
     return b
 end
