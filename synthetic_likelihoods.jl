@@ -31,13 +31,22 @@ end
 
 function (L::L_NoEF)(θ::ParameterVector; n=500, y=zeros(Float64, 4, n))::Float64
     Y = Y_NoEF(θ)
-    D = empirical_fit(y, Y)
-    return sum(logpdf(D, L.data))
+    try
+        D = empirical_fit(y, Y)
+        return sum(logpdf(D, L.data))
+    catch
+        return -Inf
+    end
 end
+
 function (L::L_EF)(θ::ParameterVector; n=500, y=zeros(Float64, 4, n))::Float64
     Y = Y_EF(θ)
-    D = empirical_fit(y, Y)
-    return sum(logpdf(D, L.data))
+    try
+        D = empirical_fit(y, Y)
+        return sum(logpdf(D, L.data))
+    catch
+        return -Inf
+    end
 end
 function (L::L_Joint)(θ::ParameterVector; n=500, y=zeros(Float64, 4, n))::Float64
     NoEF = L_NoEF(data=L.data_NoEF)
