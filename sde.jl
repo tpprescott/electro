@@ -34,7 +34,6 @@ function SDEdrift(emf::NoEF;
     vel(pol) = v*pol
 
     function f!(du, u, p, t)
-        p2 = abs2(u[1])
         du[1] = dpol(u[1])
         du[2] = vel(u[1])
     end
@@ -42,6 +41,7 @@ function SDEdrift(emf::NoEF;
 end
 
 # Harder case - for non-zero input
+dotprod(z1,z2) = real(z1)*real(z2) + imag(z1)*imag(z2)
 function SDEdrift(emf::AbstractEMField;
     v, EB_on, EB_off, D,
     γ1=0.0, γ2=0.0, γ3=0.0, γ4=0.0,
@@ -54,7 +54,7 @@ function SDEdrift(emf::AbstractEMField;
     function vel(pol,inp) 
         x = γ1*v*inp
         pol==0 && (return x)
-        x += v*pol*(1 + γ2*abs(inp) + γ3*inp*pol/abs(pol))
+        x += v*pol*(1 + γ2*abs(inp) + γ3*dotprod(inp,pol)/abs(pol))
         return x
     end
 
