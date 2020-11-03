@@ -19,7 +19,7 @@ function get_β(EB_on, pbar2)
     return 12 * EB_on / ((pbar2^2)*(3-pbar2))
 end
 
-∇W_poly(β, pbar2) = β*fromroots([0,1,pbar2])
+∇W_poly(β, pbar2) = β*fromroots([pbar2,1])
 W_poly(β, pbar2) = (β/12)*Polynomial([0, 6*pbar2, -3(pbar2+1), 2])
 
 # Easy case - for zero input
