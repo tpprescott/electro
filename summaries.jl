@@ -75,7 +75,7 @@ function (Y::InferenceSummary)(y, x::AbstractVector{ComplexF64})
 
     dx = diff(pixelated_x)
     td = sum(dx)
-    y[1] = log(abs(td))
+    y[1] = log(eps()+abs(td)) # avoid infinite summary values for simulated zero (pixellated) displacement trajectories
     y[2] = sum(abs, dx)
     y[3] = sum(abs2, dx)
     y[4] = atan(imag(td), real(td))
