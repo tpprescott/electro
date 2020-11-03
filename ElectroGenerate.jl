@@ -8,7 +8,7 @@ using Combinatorics
 
 # Start with NoEF
 function Posterior_NoEF(fn::String="electro_data")
-    B = smc(L_NoEF(), Prior(), 5000, N_T=2000, alpha=0.8, Δt_min=1e-2)
+    B = smc(L_NoEF(), Prior(), 2000, N_T=1000, alpha=0.8, Δt_min=1e-2)
     save(B, L_NoEF, fn)
     return B
 end
@@ -32,7 +32,7 @@ function SequentialPosterior_EF(
     fn::String="electro_data";
     kwargs...
 )
-    B = smc(L_EF(), IntermediatePrior(X, fn=fn), 5000, N_T=2000, alpha=0.8, Δt_min=1e-2)
+    B = smc(L_EF(), IntermediatePrior(X, fn=fn), 2000, N_T=1000, alpha=0.8, Δt_min=1e-2)
     save(b, L_EF, fn)
     return B
 end
@@ -51,7 +51,7 @@ function Posterior_Joint(
     fn::String="electro_data";
     kwargs...
 )
-    B = smc(L_Joint(), Prior(X), 5000, N_T=2000, alpha=0.8, Δt_min=1e-2)
+    B = smc(L_Joint(), Prior(X), 2000, N_T=1000, alpha=0.8, Δt_min=1e-2)
     save(B, L_Joint, fn)
     return B
 end
