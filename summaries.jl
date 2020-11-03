@@ -6,6 +6,7 @@ export InferenceSummary
 export AnalysisSummary, HittingTime
 export T_polarise, T_depolarise, T_neg, T_pos, T_perp
 export IsPolarised
+export T1_lt_T2
 
 abstract type AbstractSummary end
 function Base.length(::AbstractSummary) 
@@ -55,6 +56,11 @@ end
 ############################
 
 struct InferenceSummary <: AbstractSummary
+    δ::Float64
+    function InferenceSummary(δ=eps())
+        δ>0 || error("Needs positive pixel length")
+        return new(δ)
+    end
 end
 Base.length(::InferenceSummary)=4
 Base.eltype(::InferenceSummary)=Float64
@@ -65,11 +71,13 @@ function (Y::InferenceSummary)(y, sol)
 end
 
 function (Y::InferenceSummary)(y, x::AbstractVector{ComplexF64})
-    dx = diff(x)
+    pixelated_x = round.(x./Y.δ).*Y.δ
+
+    dx = diff(pixelated_x)
     td = sum(dx)
-    y[1] = abs(td)
-    y[2] = mean(abs, dx)
-    y[3] = std(broadcast(abs, dx))
+    y[1] = log(abs(td))
+    y[2] = sum(abs, dx)
+    y[3] = sum(abs2, dx)
     y[4] = atan(imag(td), real(td))
     y
 end
@@ -82,19 +90,19 @@ abstract type AnalysisSummary <: AbstractSummary end
 abstract type HittingTime <: AnalysisSummary end
 
 struct T_polarise <: HittingTime
-    pbar::Float64
+    pbar2::Float64
 end
 struct T_depolarise <: HittingTime
-    pbar::Float64
+    pbar2::Float64
 end
 struct T_perp <: HittingTime
-    pbar::Float64
+    pbar2::Float64
 end
 struct T_neg <: HittingTime
-    pbar::Float64
+    pbar2::Float64
 end
 struct T_pos <: HittingTime
-    pbar::Float64
+    pbar2::Float64
 end
 
 Base.length(::AnalysisSummary)=1
@@ -103,7 +111,9 @@ get_options(::AnalysisSummary)=(save_idxs=1,)
 
 ishit(Y::HittingTime, p::ComplexF64) = Y(p)
 function (Y::HittingTime)(sol)
-    getindex(sol.t, findfirst(p->ishit(Y,p), sol.u))
+    h(p) = ishit(Y,p)
+    t_out = count(h, sol.u)==0 ? Inf : getindex(sol.t, findfirst(h, sol.u))
+    t_out
 end
 function (Y::HittingTime)(y, sol)
     y[1] = Y(sol)
@@ -116,20 +126,39 @@ function _make_callback(Y::HittingTime)
 end
 get_options(Y::HittingTime) = (save_idxs=1, callback=_make_callback(Y))
 
-(Y::T_polarise)(p::ComplexF64) = abs(p)>Y.pbar
-(Y::T_depolarise)(p::ComplexF64) = abs(p)<=Y.pbar
-(Y::T_perp)(p::ComplexF64) = (abs(p)>Y.pbar)&&(abs(imag(p))>abs(real(p)))
-(Y::T_pos)(p::ComplexF64) = (abs(p)>Y.pbar)&&(abs(imag(p))<real(p))
-(Y::T_neg)(p::ComplexF64) = (abs(p)>Y.pbar)&&(-abs(imag(p))>real(p))
+(Y::T_polarise)(p::ComplexF64) = abs2(p)>Y.pbar2
+(Y::T_depolarise)(p::ComplexF64) = abs2(p)<=Y.pbar2
+(Y::T_perp)(p::ComplexF64) = (abs2(p)>Y.pbar2)&&(abs(imag(p))>abs(real(p)))
+(Y::T_pos)(p::ComplexF64) = (abs2(p)>Y.pbar2)&&(abs(imag(p))<real(p))
+(Y::T_neg)(p::ComplexF64) = (abs2(p)>Y.pbar2)&&(-abs(imag(p))>real(p))
 
 ###########
 
 struct IsPolarised <: AnalysisSummary
-    pbar::Float64
-    t_inf::Float64
+    pbar2::Float64
+    tspan::Tuple{Float64,Float64}
+end
+get_options(Π::IsPolarised) = (save_idxs=1, saveat=[Π.tspan[1], Π.tspan[2]])
+
+(Π::IsPolarised)(sol) = abs2(sol[end])>Π.pbar2
+function (Π::IsPolarised)(y, sol)
+    y[1] = Π(sol)
 end
 
-(Π::IsPolarised)(sol) = abs(sol(Π.t_inf))>Π.pbar
-function (Π::IsPolarised)(y, sol)
+####### 
+
+struct T1_lt_T2{T1<:HittingTime, T2<:HittingTime} <: AnalysisSummary
+    Time1::T1
+    Time2::T2
+end
+function _make_callback(Y::T1_lt_T2)
+    condition(u,t,integrator) = ishit(Y.Time1, u[1]) || ishit(Y.Time2, u[1])
+    affect!(integrator) = terminate!(integrator)
+    cb = DiscreteCallback(condition, affect!)
+end
+get_options(Y::T1_lt_T2) = (save_idxs=1, callback=_make_callback(Y))
+
+(Π::T1_lt_T2)(sol) = Π.Time1(sol)<Π.Time2(sol)
+function (Π::T1_lt_T2)(y, sol) 
     y[1] = Π(sol)
 end

@@ -26,7 +26,26 @@ function Base.append!(B1::InferenceBatch, B2::InferenceBatch)
     B1
 end
 function Base.getindex(b::InferenceBatch{Names}, I) where Names
-    Parameters(selectdim(b.θ, 2, I), Names)
+    Parameters(selectdim(b.θ.θ, 2, I), Names)
+end
+
+function Importance(b::InferenceBatch{Names}) where Names
+    b.ell .-= maximum(b.ell)
+    idx = isfinite.(b.ell)
+    
+    w = Weights(exp.(b.ell[idx]))
+    Importance(Parameters(b.θ[:,idx], Names), w)
+end
+function Sequential(b::InferenceBatch{Names}, I...) where Names
+    b.ell .-= maximum(b.ell)
+    idx = isfinite.(b.ell)
+
+    w = Weights(exp.(b.ell[idx]))
+    Sequential(Parameters(b.θ[:,idx], Names), I...)
+end
+function ConditionalExpectation(B::InferenceBatch, Φ::EmpiricalSummary; n=500)
+    idx = isfinite(B.ell)
+    return ConditionalExpectation(ParameterSet(B[idx]), B.ell[idx], Φ; n=n)
 end
 
 ##################

@@ -1,5 +1,6 @@
 export Parameters, ParameterVector, ParameterSet
 export Prior, Importance, Sequential
+export insupport
 
 # Define typed arrays that correspond to parameter names
 struct Parameters{Names, N, T, M<:AbstractArray{T,N}} <: AbstractArray{T, N}
@@ -72,8 +73,14 @@ struct Importance{Names, MM} <: ParameterDistribution{Names}
     q::MM
 
     function Importance(X::Parameters{Names, 2}) where Names
-        cov_matrix = sqrt(2).*cov(X, dims=2)
+        cov_matrix = cov(X, dims=2)
         q = MixtureModel(map(θ->MvNormal(θ, cov_matrix), eachcol(X)))
+        MM = typeof(q)
+        return new{Names, MM}(q)
+    end
+    function Importance(X::Parameters{Names, 2}, w::Weights) where Names
+        cov_matrix = StatsBase.cov(X.θ, w, 2)
+        q = MixtureModel(map(θ->MvNormal(θ, cov_matrix), eachcol(X)), w./w.sum)
         MM = typeof(q)
         return new{Names, MM}(q)
     end
@@ -93,8 +100,18 @@ struct Sequential{Names, MM} <: ParameterDistribution{Names}
     EF::ContinuousMultivariateDistribution
 
     function Sequential(X::Parameters{(:v, :EB_on, :EB_off, :D), 2}, I=[1,2,3,4])
-        cov_matrix = sqrt(2).*cov(X, dims=2)
+        cov_matrix = cov(X.θ, dims=2)
         NoEF = MixtureModel(map(θ->MvNormal(θ, cov_matrix), eachcol(X)))
+        MM = typeof(NoEF)
+        
+        EF = product_distribution(prior_support[I.+4])
+
+        Names = par_names[[1,2,3,4,(I.+4)...]]
+        return new{Names, MM}(NoEF, EF)
+    end
+    function Sequential(X::Parameters{(:v, :EB_on, :EB_off, :D), 2}, w::Weights, I=[1,2,3,4])
+        cov_matrix = StatsBase.cov(X.θ, w, 2)
+        NoEF = MixtureModel(map(θ->MvNormal(θ, cov_matrix), eachcol(X)), w./w.sum)
         MM = typeof(NoEF)
         
         EF = product_distribution(prior_support[I.+4])

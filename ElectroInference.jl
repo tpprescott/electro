@@ -54,14 +54,16 @@ const u_stop = StepEF(1, 0, 90)
 P_NoEF(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), NoEF())
 P_EF(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), ConstantEF(1))
 
-const Y = InferenceSummary()
-Y_NoEF(θ) = TrajectoryRandomVariable(Y, P_NoEF(θ))
-Y_EF(θ) = TrajectoryRandomVariable(Y, P_EF(θ))
+# Pixel size is 1.055125 μm for the NoEF data, and 0.91899 μm for (most of) the EF data
+
+Y_NoEF(θ) = TrajectoryRandomVariable(InferenceSummary(1.055125), P_NoEF(θ))
+Y_EF(θ) = TrajectoryRandomVariable(InferenceSummary(0.91899), P_EF(θ))
 
 const xobs_NoEF = observation_filter(CSV.read("No_EF.csv"))
 const xobs_EF = observation_filter(CSV.read("With_EF.csv"))
-const yobs_NoEF = summarise(xobs_NoEF, Y)
-const yobs_EF = summarise(xobs_EF, Y)
+# Summarise - data is already pixellated, no need to do so again.
+const yobs_NoEF = summarise(xobs_NoEF, InferenceSummary())
+const yobs_EF = summarise(xobs_EF, InferenceSummary())
 
 const combination_powerset = powerset([1,2,3,4])
 
