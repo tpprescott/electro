@@ -29,7 +29,6 @@ export P_NoEF, P_EF
 export Y_NoEF, Y_EF
 export xobs_NoEF, xobs_EF
 export yobs_NoEF, yobs_EF
-export combination_powerset
 
 const par_names = (:v, :EB_on, :EB_off, :D, :γ1, :γ2, :γ3, :γ4)
 const par_names_NoEF = par_names[1:4]
@@ -65,6 +64,13 @@ const xobs_EF = observation_filter(CSV.read("With_EF.csv"))
 const yobs_NoEF = summarise(xobs_NoEF, InferenceSummary())
 const yobs_EF = summarise(xobs_EF, InferenceSummary())
 
-const combination_powerset = powerset([1,2,3,4])
+# For analysis purposes
+# ConditionalExpectation(b_NoEF, S_NoEF(), n=500)
+
+const long_tspan = (0.0, 1800.0)
+P_NoEF_0(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(0), NoEF(), tspan=long_tspan)
+P_NoEF_1(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(1), NoEF(), tspan=long_tspan)
+P_Switched(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(1), ConstantEF(-1), tspan=long_tspan)
+
 
 end

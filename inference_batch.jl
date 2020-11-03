@@ -44,7 +44,7 @@ function Sequential(b::InferenceBatch{Names}, I...) where Names
     Sequential(Parameters(b.θ[:,idx], Names), I...)
 end
 function ConditionalExpectation(B::InferenceBatch, Φ::EmpiricalSummary; n=500)
-    idx = isfinite(B.ell)
+    idx = isfinite.(B.ell)
     return ConditionalExpectation(ParameterSet(B[idx]), B.ell[idx], Φ; n=n)
 end
 
@@ -103,7 +103,9 @@ function smc_step(
     
     Δt_max = 1-temperature
 
-    Δt = if f(Δt_max) <= 0
+    Δt = if Δt_max <= Δt_min
+        Δt_max
+    elseif f(Δt_max) <= 0
         Δt_max
     elseif f(Δt_min) > 0
         Δt_min

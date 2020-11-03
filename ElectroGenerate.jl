@@ -1,7 +1,8 @@
+include("ElectroInference.jl")
 module ElectroGenerate
 
-include("ElectroInference.jl")
-using .ElectroInference
+using ..ElectroInference
+using Combinatorics
 
 ############ Inference data
 
@@ -11,6 +12,15 @@ function Posterior_NoEF(fn::String="electro_data")
     save(B, L_NoEF, fn)
     return B
 end
+
+# Analyse NoEF results as a conditional expectation
+function EmpiricalSummary_NoEF(fn::String="electro_data")
+    B = load(fn, L_NoEF, (:v, :EB_on, :EB_off, :D))
+    C = ConditionalExpectation(B, S_NoEF(), n=500)
+    save(C, S_NoEF, fn)
+    return C
+end
+
 
 # Set up the intermediate prior based on the NoEF output and evaluated against EF only
 function IntermediatePrior(X, fn::String="electro_data"; kwargs...)
@@ -26,6 +36,8 @@ function SequentialPosterior_EF(
     save(b, L_EF, fn)
     return B
 end
+
+const combination_powerset = powerset([1,2,3,4])
 function AllSequentialInference(fn::String="electro_data"; kwargs...)
     for X in combination_powerset
         SequentialPosterior_EF(X, fn; kwargs...)

@@ -19,6 +19,11 @@ struct RandomInitialPolarity{T} <: AbstractPolarityDistribution
 end
 (r::RandomInitialPolarity)() = [r.σ*randn(ComplexF64), zero(ComplexF64)]
 
+struct FixedInitialPolarity <: AbstractPolarityDistribution
+    p0::ComplexF64
+end
+(r::FixedInitialPolarity)() = [r.p0, zero(ComplexF64)]
+
 ### BUILD A MONTE CARLO SAMPLE OF SUMMARY STATISTICS FOR A GIVEN PARAMETER, POLARITY DISTRIBUTION, AND EMF
 
 include("sde.jl")
