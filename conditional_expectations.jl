@@ -37,6 +37,11 @@ struct ConditionalExpectation
     end
 end
 
+##### For analysis
+
+pbar2(theta) = get_pbar2(theta[2], theta[3])
+
+abstract type EmpiricalSummary end
 function ConditionalExpectation(θ::ParameterSet, ell, Φ::EmpiricalSummary; n=500)
     ϕ(θ_i) = Φ(θ_i; n=n)
     Dvec = @showprogress pmap(ϕ, θ)
@@ -44,11 +49,7 @@ function ConditionalExpectation(θ::ParameterSet, ell, Φ::EmpiricalSummary; n=5
     return ConditionalExpectation(D, ell)
 end
 
-##### For analysis
 
-pbar2(theta) = get_pbar2(theta[2], theta[3])
-
-abstract type EmpiricalSummary end
 
 struct S_NoEF <: EmpiricalSummary end
 function (::S_NoEF)(θ::ParameterVector; n=500, y=zeros(Float64, 3, n))
