@@ -49,8 +49,6 @@ function ConditionalExpectation(θ::ParameterSet, ell, Φ::EmpiricalSummary; n=5
     return ConditionalExpectation(D, ell)
 end
 
-
-
 struct S_NoEF <: EmpiricalSummary end
 function (::S_NoEF)(θ::ParameterVector; n=500, y=zeros(Float64, 3, n))
     S = (
