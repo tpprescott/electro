@@ -51,18 +51,27 @@ end
 ##################
 # SMC: Step and wrapper
 ##################
-function smc(L::SyntheticLogLikelihood, π::ParameterDistribution{Names}, N::Int; N_T::Int, σ=0.001, kwargs...) where Names
-    B = InferenceBatch(N, π)
-    temperature = Float64(0)
-    gen=0
+function smc(
+    L::SyntheticLogLikelihood, 
+    π::ParameterDistribution{Names}, 
+    N::Int,
+    B::InferenceBatch = InferenceBatch(N, π);
+    N_T::Int,
+    σ=0.001,
+    kwargs...
+) where Names
+    
+    temperature = zero(Float64)
+    gen = zero(Int64)
 
     dim = length(Names)
     base_cov = zeros(dim, dim)
     base_cov += σ * LinearAlgebra.I
-    Σ = similar(base_cov)
+    # Σ = similar(base_cov)
+    Σ = base_cov
 
     while true
-        gen +=1
+        gen += one(Int64)
         Δt, ess = smc_step(B, L, π, temperature; kwargs...)
         temperature += Δt
         @info "Generation: $(gen). Temperature: $(temperature). ESS: $(ess)."
@@ -72,8 +81,8 @@ function smc(L::SyntheticLogLikelihood, π::ParameterDistribution{Names}, N::Int
         end
 
         W = Weights(exp.(B.ell))
-        parameter_cov = cov(B.θ.θ, W, 2)
-        _interpolate_covariance!(Σ, base_cov, parameter_cov, temperature)
+        #parameter_cov = cov(B.θ.θ, W, 2)
+        #_interpolate_covariance!(Σ, base_cov, parameter_cov, temperature)
         ess<N_T && resample!(B)
         perturb!(B, MvNormal(Σ))
     end
