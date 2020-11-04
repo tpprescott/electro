@@ -44,6 +44,12 @@ end
 function Base.getindex(b::InferenceBatch{Names}, I) where Names
     Parameters(selectdim(b.θ.θ, 2, I), Names)
 end
+function Distributions.mean(b::InferenceBatch{Names}) where Names
+    b.ell .-= maximum(b.ell)
+    w = Weights(exp.(b.ell))
+    θbar = vec(mean(b.θ, w, dims=2))
+    return Parameters(θbar, Names)
+end
 
 function Importance(b::InferenceBatch{Names}) where Names
     b.ell .-= maximum(b.ell)

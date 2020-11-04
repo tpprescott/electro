@@ -28,12 +28,13 @@ function Distributions.mean(y, Z::TrajectoryRandomVariable...)
     return vec(mean(y, dims=2))
 end
 
-struct ConditionalExpectation
+struct ConditionalExpectation{Names}
     D::Matrix{Float64}
     ell::Vector{Float64}
-    function ConditionalExpectation(D, ell)
-        size(D,2)==length(ell) || error("Mismatched sizes")
-        new(D, ell)
+    function ConditionalExpectation(D, ell, Names::NTuple{N, Symbol}) where N
+        size(D,2)==length(ell) || error("Mismatched sizes: sample points and weights")
+        size(D,1)==length(Names) || error("Mismatched sizes: sample dimension and names")
+        new{Names}(D, ell)
     end
 end
 
@@ -42,11 +43,15 @@ end
 pbar2(theta) = get_pbar2(theta[2], theta[3])
 
 abstract type EmpiricalSummary end
+function getnames(::EmpiricalSummary)    
+    error("Define the names of the summary statistic.")
+end
+
 function ConditionalExpectation(θ::ParameterSet, ell, Φ::EmpiricalSummary; n=500)
     ϕ(θ_i) = Φ(θ_i; n=n)
     Dvec = @showprogress pmap(ϕ, θ)
     D = hcat(Dvec...)
-    return ConditionalExpectation(D, ell)
+    return ConditionalExpectation(D, ell, getnames(Φ))
 end
 
 struct S_NoEF <: EmpiricalSummary end
@@ -59,7 +64,7 @@ function (::S_NoEF)(θ::ParameterVector; n=500, y=zeros(Float64, 3, n))
     D = mean(y, S...)
 end
 Base.length(::S_NoEF)=3
-
+getnames(::S_NoEF) = (:T_polarise, :T_depolarise, :IsPolarised)
 
 #const stat_list_switch = [
 #    θ->TrajectoryRandomVariable(T_depolarise(pbar(θ)), P_Switched(θ)), 

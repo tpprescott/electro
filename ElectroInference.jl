@@ -13,6 +13,17 @@ export rand, pdf, logpdf, sample, mean
 
 const par_names = (:v, :EB_on, :EB_off, :D, :γ1, :γ2, :γ3, :γ4)
 const par_names_NoEF = par_names[1:4]
+## Define possible priors
+const prior_support = [
+    Uniform(0,5),
+    Uniform(0,5),
+    Uniform(0,5),
+    Uniform(0,0.5),
+    Uniform(0,2),
+    Uniform(0,2),
+    Uniform(0,2),
+    Uniform(0,2),
+]
 
 include("observations.jl")
 include("parameters.jl")
@@ -32,18 +43,6 @@ export P_NoEF, P_EF
 export Y_NoEF, Y_EF
 export xobs_NoEF, xobs_EF
 export yobs_NoEF, yobs_EF
-
-## Define possible priors
-const prior_support = [
-    Uniform(0,5),
-    Uniform(0,5),
-    Uniform(0,5),
-    Uniform(0,0.5),
-    Uniform(0,2),
-    Uniform(0,2),
-    Uniform(0,2),
-    Uniform(0,2),
-]
 
 const u_NoEF = NoEF()
 const u_EF = ConstantEF(1)
