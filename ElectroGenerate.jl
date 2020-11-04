@@ -23,18 +23,16 @@ end
 
 
 # Set up the intermediate prior based on the NoEF output and evaluated against EF only
-function IntermediatePrior(X, fn::String="electro_data"; kwargs...)
-    B = load(fn, L_NoEF, (:v, :EB_on, :EB_off, :D))
-    return Sequential(B, X)
-end
 function SequentialPosterior_EF(
     X,
     fn::String="electro_data";
     kwargs...
 )
-    B = smc(L_EF(), IntermediatePrior(X, fn=fn), 2000, N_T=1000, alpha=0.8, Δt_min=1e-2)
-    save(b, L_EF, fn)
-    return B
+    B0 = load(fn, L_NoEF, (:v, :EB_on, :EB_off, :D))
+    B1 = InferenceBatch(Prior(X), B0)
+    smc(L_EF(), IntermediatePrior(X, fn=fn), 2000, B1, N_T=1000, alpha=0.8, Δt_min=1e-2)
+    save(B1, L_EF, fn)
+    return B1
 end
 
 const combination_powerset = powerset([1,2,3,4])

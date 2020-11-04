@@ -11,6 +11,9 @@ using RecipesBase, LaTeXStrings
 
 export rand, pdf, logpdf, sample, mean
 
+const par_names = (:v, :EB_on, :EB_off, :D, :γ1, :γ2, :γ3, :γ4)
+const par_names_NoEF = par_names[1:4]
+
 include("observations.jl")
 include("parameters.jl")
 include("inputs.jl")
@@ -29,9 +32,6 @@ export P_NoEF, P_EF
 export Y_NoEF, Y_EF
 export xobs_NoEF, xobs_EF
 export yobs_NoEF, yobs_EF
-
-const par_names = (:v, :EB_on, :EB_off, :D, :γ1, :γ2, :γ3, :γ4)
-const par_names_NoEF = par_names[1:4]
 
 ## Define possible priors
 const prior_support = [

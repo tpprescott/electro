@@ -11,9 +11,25 @@ mutable struct InferenceBatch{Names, P<:Parameters{Names,2}}
     ell::Vector{Float64}
     log_sl::Vector{Float64}
 end
-function InferenceBatch(N::Int, π::ParameterDistribution{Names}) where Names 
+function InferenceBatch(N::Int, π::ParameterDistribution)
     θ = Parameters(π, N)
-    P = typeof(θ)
+    ell = fill(1/N, N)
+    log_sl = zeros(N)
+    InferenceBatch(θ, ell, log_sl)
+end
+function InferenceBatch(
+    π::ParameterDistribution,
+    B::InferenceBatch{par_names_NoEF},
+    K=MvNormal(4,0.01)
+)
+
+    N = length(B)
+    resample!(B)
+    perturb!(B, K)
+
+    θ = Parameters(π, N)
+    θ.θ[1:4, :] .= B.θ.θ
+
     ell = fill(1/N, N)
     log_sl = zeros(N)
     InferenceBatch(θ, ell, log_sl)
@@ -57,7 +73,7 @@ function smc(
     N::Int,
     B::InferenceBatch = InferenceBatch(N, π);
     N_T::Int,
-    σ=0.001,
+    σ=0.01,
     kwargs...
 ) where Names
     
@@ -65,10 +81,7 @@ function smc(
     gen = zero(Int64)
 
     dim = length(Names)
-    base_cov = zeros(dim, dim)
-    base_cov += σ * LinearAlgebra.I
-    # Σ = similar(base_cov)
-    Σ = base_cov
+    K = MvNormal(dim, σ)
 
     while true
         gen += one(Int64)
@@ -81,10 +94,8 @@ function smc(
         end
 
         W = Weights(exp.(B.ell))
-        #parameter_cov = cov(B.θ.θ, W, 2)
-        #_interpolate_covariance!(Σ, base_cov, parameter_cov, temperature)
         ess<N_T && resample!(B)
-        perturb!(B, MvNormal(Σ))
+        perturb!(B, K)
     end
 end
 
