@@ -37,6 +37,10 @@ struct ConditionalExpectation{Names}
         new{Names}(D, ell)
     end
 end
+function StatsBase.mean(c::ConditionalExpectation{Names}) where Names
+    w = Weights(c.ell .- maximum(c.ell))
+    NamedTuple{Names}(vec(mean(c.D, w, dims=2)))
+end
 
 ##### For analysis
 

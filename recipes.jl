@@ -149,7 +149,7 @@ const ss_str = (
     L"\bar T_-~\mathrm{min}",
     L"\bar T_+~\mathrm{min}",
     L"\bar T_\perp~\mathrm{min}",
-    L"\bar Π_\infty",
+    L"\bar \Pi_\infty",
     L"\bar P_{\perp, -}",
 )
 const D_ss_str = Dict(zip(ss_names, ss_str))
@@ -177,11 +177,21 @@ end
     xguide --> D_ss_str[Names[I]]
     yticks --> :none
     legend := :none
-    weights := exp.(C.ell .- maximum(C.ell))
+    
     title --> D_ss_titles[Names[I]]
     seriestype --> :stephist
     normalize --> :pdf
-    selectdim(C.D, 1, I)
+
+    infty_vec = get(plotattributes, :infty, fill(Inf,I))
+    infty = infty_vec[I]
+    idx = selectdim(C.D, 1, I).<infty
+
+    w = exp.(C.ell .- maximum(C.ell))
+    weights := w[idx]
+    xlims --> (0, infty)
+
+    @info "Posterior mass at infinity: $(sum(w[Not(idx)])/sum(w))."
+    view(C.D, I, idx)
 end
 
 # Individual subplots - 2D scatter (as default) or histogram
@@ -190,7 +200,18 @@ end
     yguide --> D_ss_str[Names[J]]
     legend := :none
     seriestype --> :hist2d
-    weights := exp.(C.ell .- maximum(C.ell))
+
+    infty_vec = get(plotattributes, :infty, fill(Inf, max(I,J)))
+    infty_I = infty_vec[I]
+    infty_J = infty_vec[J]
+    idx = (selectdim(C.D, 1, I).<infty_I) .* (selectdim(C.D, 1, J).<infty_J)
+
+    w = exp.(C.ell .- maximum(C.ell))
+    weights := w[idx]
+    xlims --> (0, infty_I)
+    ylims --> (0, infty_J)
+
+    @info "Posterior mass at infinity: $(sum(w[Not(idx)])/sum(w))."
     marker_z --> get(plotattributes, :weights, nothing)
     (selectdim(C.D, 1, I), selectdim(C.D, 1, J))
 end

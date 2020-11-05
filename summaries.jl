@@ -112,7 +112,7 @@ get_options(::AnalysisSummary)=(save_idxs=1,)
 ishit(Y::HittingTime, p::ComplexF64) = Y(p)
 function (Y::HittingTime)(sol)
     h(p) = ishit(Y,p)
-    t_out = count(h, sol.u)==0 ? Inf : getindex(sol.t, findfirst(h, sol.u))
+    t_out = count(h, sol.u)==0 ? sol.t[end] : getindex(sol.t, findfirst(h, sol.u))
     t_out
 end
 function (Y::HittingTime)(y, sol)
