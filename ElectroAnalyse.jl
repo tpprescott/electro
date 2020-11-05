@@ -52,8 +52,9 @@ function see_velocities(; ht=600, kwargs...)
     kwargs...)
 end
 
-export b_NoEF
+export b_NoEF, c_NoEF
 const b_NoEF = load(:L_NoEF, (:v, :EB_on, :EB_off, :D), fn="electro_data")
+const c_NoEF = load(:S_NoEF, fn="electro_data")
 
 # Fig. 2 --- posterior_NoEF
 
@@ -87,8 +88,19 @@ end
 export compare_NoEF
 function compare_NoEF(θ = mean(b_NoEF); ht=2*colwidth, kwargs...)
     plot(θ, NoEF; 
-    size = (colwidth, ht),
-    kwargs...)
+        size = (colwidth, ht),
+        kwargs...,
+    )
+end
+
+# Fig.4 --- NoEF posterior distribution of simulation outputs
+
+function predictive_NoEF(; ht=2*colwidth, kwargs...)
+    plot(c_NoEF;
+        layout=(3,1),
+        size=(colwidth, ht),
+        kwargs...,
+    )
 end
 
 # Fig. 9 --- Polarities

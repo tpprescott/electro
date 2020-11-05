@@ -7,7 +7,7 @@
 #     prob::E
 # end
 
-export EmpiricalSummary
+export EmpiricalSummary, getnames
 export S_NoEF
 export ConditionalExpectation
 
@@ -43,15 +43,15 @@ end
 pbar2(theta) = get_pbar2(theta[2], theta[3])
 
 abstract type EmpiricalSummary end
-function getnames(::EmpiricalSummary)    
+function getnames(::Type{T}) where T<:EmpiricalSummary
     error("Define the names of the summary statistic.")
 end
 
-function ConditionalExpectation(θ::ParameterSet, ell, Φ::EmpiricalSummary; n=500)
+function ConditionalExpectation(θ::ParameterSet, ell, Φ::ES; n=500) where ES<:EmpiricalSummary
     ϕ(θ_i) = Φ(θ_i; n=n)
     Dvec = @showprogress pmap(ϕ, θ)
     D = hcat(Dvec...)
-    return ConditionalExpectation(D, ell, getnames(Φ))
+    return ConditionalExpectation(D, ell, getnames(ES))
 end
 
 struct S_NoEF <: EmpiricalSummary end
@@ -64,7 +64,7 @@ function (::S_NoEF)(θ::ParameterVector; n=500, y=zeros(Float64, 3, n))
     D = mean(y, S...)
 end
 Base.length(::S_NoEF)=3
-getnames(::S_NoEF) = (:T_polarise, :T_depolarise, :IsPolarised)
+getnames(::Type{S_NoEF}) = (:T_polarise, :T_depolarise, :IsPolarised)
 
 #const stat_list_switch = [
 #    θ->TrajectoryRandomVariable(T_depolarise(pbar(θ)), P_Switched(θ)), 

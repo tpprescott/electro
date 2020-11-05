@@ -1,4 +1,4 @@
-export save, load
+export save, load, asave, aload
 
 # SAVING
 function save(b::InferenceBatch{Names}, LT::Symbol; fn::String="electro_data") where Names
@@ -110,13 +110,14 @@ function ConditionalExpectation(G::HDF5Group, Names)
 end
 
 function load(ES::Symbol; fn::String="electro_data")
-    eval(ES) <: EmpiricalSummary || error("Wrong symbol, mush --- $(eval(ES)) is not subtype of EmpiricalSummary")
+    ES_type = eval(ES)
+    ES_type <: EmpiricalSummary || error("Wrong symbol, mush --- $(eval(ES)) is not subtype of EmpiricalSummary")
     fid = h5open(fn*".h5", "r")
     g_name = String(ES)
 
     g = exists(fid, g_name) ? fid[g_name] : error("No data for summary type $ES")
     
-    c = ConditionalExpectation(g2, getnames(eval(ES)))
+    c = ConditionalExpectation(g, getnames(eval(ES)))
     close(fid)
     return c
 end
