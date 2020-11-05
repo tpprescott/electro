@@ -5,6 +5,7 @@ using ..ElectroInference
 using Plots
 using LaTeXStrings
 
+export colwidth
 const colwidth = 312
 
 # Fig.1 --- See velocities
@@ -65,7 +66,7 @@ function posterior_NoEF(; ht=2*colwidth, kwargs...)
         layout=(4,1),
         size = (colwidth, ht),
         titlefontsize=11,
-        tickfontsize=8,
+        labelfontsize=8,
         kwargs...
     )
 end
@@ -95,17 +96,177 @@ end
 
 # Fig.4 --- NoEF posterior distribution of simulation outputs
 
+export predictive_NoEF
 function predictive_NoEF(; ht=2*colwidth, kwargs...)
     plot(c_NoEF;
         layout=(3,1),
         size=(colwidth, ht),
+        infty=[180, 180, 1],
         kwargs...,
     )
 end
 
-# Fig. 9 --- Polarities
+############# Find best model
+# Fig.5 --- Model selection
 
-function see_coarse_polarity(; kwargs...)
+export D_EF
+X_str_vec = ["$X" for X in combination_powerset]
+X_str_vec[1] = "[]"
+const D_EF = Dict(
+    map(X->(X, aload(:log_partition_function, :L_EF, get_par_names(X))),
+        combination_powerset
+    )
+)
+
+J(X, μ) = D_EF[X] - μ*(4+length(X))
+function objective_function(μ; kwargs...)
+    Jvec = [J(X, μ) for X in combination_powerset]
+    idx = sortperm(Jvec)
+    bar(
+        1:16,
+        Jvec[idx] .- minimum(Jvec),
+        yticks=(1:16, X_str_vec[idx]),
+        orientation=:horizontal,
+        legend=:none,
+        title=latexstring("\\mathrm{Parametrisation~cost}~\\mu = $μ"),
+        ylabel=L"X",
+        xlabel=latexstring("\\mathrm{Translated}~J_$μ"),
+        kwargs...
+    )
+end
+
+export see_model_selection
+function see_model_selection(μ::Vararg{Any, N}; ht=N*colwidth, kwargs...) where N
+    fset = objective_function.(μ)
+    fig = plot(fset...;
+        titlefontsize=11,
+        labelfontsize=8,
+        tickfontsize=6,
+        layout=(2,1),
+        size=(colwidth,ht),
+        kwargs...
+    )
+end
+
+############# Use best model
+
+export b_124
+const b_124 = load(:L_EF, get_par_names([1,2,4]); fn="electro_data")
+
+# Fig. 6 --- EF Posteriors
+export posterior_EF, posterior_compare, posterior_EF_2d
+function posterior_EF(; ht=1.5*colwidth, kwargs...)
+    fig = plot(
+        b_124,
+        5:7;
+        layout=(3,1),
+        size = (colwidth, ht),
+        titlefontsize=11,
+        labelfontsize=8,
+        kwargs...
+    )
+end
+
+# Fig. 6 (SI) --- Compare posteriors
+function posterior_compare(; ht=2*colwidth, kwargs...)
+    fig = plot(
+        b_124,
+        1:4;
+        layout=(4,1),
+        size = (colwidth, ht),
+        titlefontsize=11,
+        labelfontsize=8,
+        label= L"\pi(\theta | \mathbf{x}_\mathrm{NoEM})",
+        kwargs...
+    )
+    plot!(
+        fig,
+        b_NoEF,
+        1:4,
+        linestyle=:dot,
+        label= L"\pi(\theta | \mathbf{x}_\mathrm{NoEM}, \mathbf{x}_\mathrm{EM})",
+    )
+    plot!(
+        fig,
+        subplot=1,
+        legend=true,
+    )
+    fig
+end
+
+
+# Fig. 6 (SI) --- posterior_EF_2d
+
+function posterior_EF_2d(; ht=3*colwidth, kwargs...)
+    parametergrid(b_124.θ, 1:7;
+        size=(3*colwidth, ht),
+        titlefontsize=8,
+        labelfontsize=8,
+        tickfontsize=6,
+        kwargs...
+    )
+end
+
+
+# Fig. 7 --- Compare EF simulation and data
+export compare_EF
+function compare_EF(θ = mean(b_124); ht=2*colwidth, kwargs...)
+    plot(θ, ConstantEF; 
+        size = (colwidth, ht),
+        kwargs...,
+    )
+end
+
+# Fig. 8 --- Plot pre/post switch/stop behaviour
+export θbar
+const θbar = mean(b_124)
+
+export view_step
+function _pre(sol, n=5; kwargs...)
+    m = pre_step_mean(sol)
+    t = (pre_step_traj(sol[i]) for i in 1:n)
+    fig = plot(m; c=:red, ratio=:equal, label="Mean", linewidth=3, kwargs...)
+    for t_i in t
+        plot!(fig, t_i; label="")
+    end
+    fig
+end
+function _post(sol, n=5; kwargs...)
+    m = post_step_mean(sol)
+    t = (post_step_traj(sol[i]) for i in 1:n)
+    fig = plot(m; c=:red, ratio=:equal, label="Mean", linewidth=3, kwargs...)
+    for t_i in t
+        plot!(fig, t_i; label="")
+    end
+    fig
+end
+
+function view_step(θ = θbar; ht=2.5*colwidth, kwargs...)
+    sol_switch = rand(P_switch(θ), 500, save_idxs=2)
+    sol_stop = rand(P_stop(θ), 500, save_idxs=2)
+
+    f1 = _pre(sol_switch, title=L"\mathbf{u}_\mathrm{switch}~:~0<t<90~\mathrm{min}")
+    f2 = _post(sol_switch, title=L"\mathbf{u}_\mathrm{switch}~:~90<t<180~\mathrm{min}", legend=:none)
+    f3 = _pre(sol_stop, title=L"\mathbf{u}_\mathrm{stop}~:~0<t<90~\mathrm{min}", legend=:none)
+    f4 = _post(sol_stop, title=L"\mathbf{u}_\mathrm{stop}~:~90<t<180~\mathrm{min}", legend=:none)
+
+    plot(f1,f2,f3,f4; 
+        layout=(4,1),
+        size=(colwidth, ht),
+        xlabel=L"x",
+        ylabel=L"y",
+        labelfontsize=8,
+        titlefontsize=11,
+        framestyle=:box,
+        link=:all,
+        kwargs...
+    )
+end
+
+# Fig. 9 --- Polarity diagram
+
+export coarse_polarity_diagram
+function coarse_polarity_diagram(; kwargs...)
     Ω0 = Plots.Shape(Plots.partialcircle(0, 2π, 100, 0.6))
     Ωp = Plots.Shape([0,2,2], [0,2,-2])
     Ωm = Plots.Shape([0,-2,-2], [0,2,-2])
@@ -133,6 +294,47 @@ function see_coarse_polarity(; kwargs...)
 
     plot!(fig; kwargs...)
     fig
+end
+
+# Fig. 9 --- Polarity trajectories
+export see_coarse_polarity
+function see_coarse_polarity(θ = θbar; ht=1.5*colwidth, kwargs...)
+    pbar2 = ElectroInference.pbar2(θ)
+    YY = (T_depolarise(pbar2), T_pos(pbar2), T_neg(pbar2), T_perp(pbar2))
+
+    sol_switch = rand(P_switch(θ), 500, save_idxs=1)
+    sol_stop = rand(P_stop(θ), 500, save_idxs=1)
+    
+    fig1 = plot(0:0.1:180, YY, sol_switch, title=L"\mathbf{u}_\mathrm{switch}", labels=["Depolarised" "Positive" "Negative" "Perpendicular"], c=[4 1 2 3])
+    fig2 = plot(0:0.1:180, YY, sol_stop, title=L"\mathbf{u}_\mathrm{stop}", legend=:none, c=[4 1 2 3])
+
+    fig = plot(fig1, fig2, layout=(2,1), size=(colwidth, ht), kwargs...)
+    fig
+end
+
+# Fig. 10 --- Posterior predictive switching stats
+export predictive_Switch, predictive_Stop
+
+c_Switch = load(:S_Switch)
+c_Stop = load(:S_Stop)
+
+function predictive_Switch(; ht=2*colwidth, kwargs...)
+    plot(c_Switch;
+        layout=(3,1),
+        size=(colwidth, ht),
+        infty=[180, 180, 0.5],
+        kwargs...,
+    )
+end
+
+# Fig. 10 --- Posterior predictive stopping stats
+function predictive_Stop(; ht=2*colwidth, kwargs...)
+    plot(c_Stop;
+        layout=(3,1),
+        size=(colwidth, ht),
+        infty=[180, 180, 0.5],
+        kwargs...,
+    )
 end
 
 end

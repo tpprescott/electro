@@ -38,9 +38,23 @@ struct ConditionalExpectation{Names}
     end
 end
 function StatsBase.mean(c::ConditionalExpectation{Names}) where Names
-    w = Weights(c.ell .- maximum(c.ell))
+    w = Weights(exp.(c.ell .- maximum(c.ell)))
     NamedTuple{Names}(vec(mean(c.D, w, dims=2)))
 end
+function StatsBase.cov(c::ConditionalExpectation{Names}) where Names
+    w = Weights(exp.(c.ell .- maximum(c.ell)))
+    cov(c.D, w, 2)
+end
+function StatsBase.std(c::ConditionalExpectation{Names}) where Names
+    w = Weights(exp.(c.ell .- maximum(c.ell)))
+    NamedTuple{Names}(std(c.D, w, 2))
+end
+function StatsBase.median(c::ConditionalExpectation{Names}) where Names
+    w = Weights(exp.(c.ell .- maximum(c.ell)))
+    dim= size(c.D, 1)
+    return NamedTuple{Names}(map(row -> median(row, w), eachrow(c.D)))
+end
+
 
 ##### For analysis
 
@@ -69,6 +83,32 @@ function (::S_NoEF)(θ::ParameterVector; n=500, y=zeros(Float64, 3, n))
 end
 Base.length(::S_NoEF)=3
 getnames(::Type{S_NoEF}) = (:T_polarise, :T_depolarise, :IsPolarised)
+
+
+struct S_Switch <: EmpiricalSummary end
+function (::S_Switch)(θ::ParameterVector; n=500, y=zeros(Float64, 3, n))
+    S = (
+        TrajectoryRandomVariable(T_depolarise(pbar2(θ)), P_Switched(θ)),
+        TrajectoryRandomVariable(T_neg(pbar2(θ)), P_Switched(θ)),
+        TrajectoryRandomVariable(T1_lt_T2(T_perp(pbar2(θ)), T_neg(pbar2(θ))), P_Switched(θ)),
+    )
+    D = mean(y, S...)
+end
+Base.length(::S_Switch)=3
+getnames(::Type{S_Switch}) = (:T_depolarise, :T_neg, :T1_lt_T2)
+
+struct S_Stop <: EmpiricalSummary end
+function (::S_Stop)(θ::ParameterVector; n=500, y=zeros(Float64, 3, n))
+    S = (
+        TrajectoryRandomVariable(T_depolarise(pbar2(θ)), P_NoEF_1(θ)),
+        TrajectoryRandomVariable(T_neg(pbar2(θ)), P_NoEF_1(θ)),
+        TrajectoryRandomVariable(T1_lt_T2(T_perp(pbar2(θ)), T_neg(pbar2(θ))), P_NoEF_1(θ)),
+    )
+    D = mean(y, S...)
+end
+Base.length(::S_Stop)=3
+getnames(::Type{S_Stop}) = (:T_depolarise, :T_neg, :T1_lt_T2)
+
 
 #const stat_list_switch = [
 #    θ->TrajectoryRandomVariable(T_depolarise(pbar(θ)), P_Switched(θ)), 

@@ -2,7 +2,7 @@ module ElectroInference
 
 using Distributions, Random, Combinatorics, InvertedIndices
 using Statistics, StatsBase
-using DifferentialEquations
+using DifferentialEquations, DifferentialEquations.EnsembleAnalysis
 using DataFrames, CSV
 using Distributed, ProgressMeter
 using Roots, LinearAlgebra
@@ -71,6 +71,8 @@ const yobs_EF = summarise(xobs_EF, InferenceSummary())
 
 # For analysis purposes
 # ConditionalExpectation(b_NoEF, S_NoEF(), n=500)
+export P_switch, P_stop
+export P_NoEF_0, P_NoEF_1, P_Switched
 
 P_switch(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), u_switch)
 P_stop(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), u_stop)

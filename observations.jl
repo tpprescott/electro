@@ -21,3 +21,23 @@ function observation_filter(df::DataFrame)
     z = complex.(df[:x], df[:y])
     return reshape(z, 37, 50)
 end
+
+export pre_step_mean, post_step_mean
+function pre_step_mean(sol::EnsembleSolution)
+    u = timepoint_mean(sol, 0:5:90)
+    return u
+end
+function post_step_mean(sol::EnsembleSolution)
+    u = timepoint_mean(sol, 90:5:180)
+    return u .- u[1]
+end
+
+export pre_step_traj, post_step_traj
+function pre_step_traj(sol)
+    x = sol.(0:5:90)
+end
+function post_step_traj(sol)
+    x = sol.(90:5:180)
+    x .-= x[1]
+    x
+end

@@ -54,15 +54,31 @@ function AllSequentialPartitions(N::Int; fn::String="electro_data", kwargs...)
     end
 end
 
-# Set up a joint inference problem, with the (known best, as default) parameter space X
-function Posterior_Joint(
-    X=[1,2,4],
-    fn::String="electro_data";
-    kwargs...
-)
-    B = smc(L_Joint(), Prior(X), 2000, N_T=1000, alpha=0.8, Δt_min=1e-3)
-    save(B, :L_Joint, fn)
-    return B
+# Analyse Switch results as a conditional expectation
+function EmpiricalSummary_Switch(; fn::String="electro_data")
+    B = load(:L_EF, get_par_names([1,2,4]); fn=fn)
+    C = ConditionalExpectation(B, S_Switch(), n=500)
+    save(C, :S_Switch; fn=fn)
+    return C
 end
+# Analyse Stop results as a conditional expectation
+function EmpiricalSummary_Stop(; fn::String="electro_data")
+    B = load(:L_EF, get_par_names([1,2,4]); fn=fn)
+    C = ConditionalExpectation(B, S_Stop(), n=500)
+    save(C, :S_Stop; fn=fn)
+    return C
+end
+
+
+# Set up a joint inference problem, with the (known best, as default) parameter space X
+#function Posterior_Joint(
+#    X=[1,2,4],
+#    fn::String="electro_data";
+#    kwargs...
+#)
+#    B = smc(L_Joint(), Prior(X), 2000, N_T=1000, alpha=0.8, Δt_min=1e-3)
+#    save(B, :L_Joint, fn)
+#    return B
+#end
 
 end

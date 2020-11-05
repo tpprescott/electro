@@ -140,7 +140,7 @@ const ss_names = (
     :T_pos,
     :T_perp,
     :IsPolarised,
-    :T1_lt_T2,
+    :T1_lt_T2, # This should be more general but refers to a specific one I'm using in my work
 )
 
 const ss_str = (
@@ -316,4 +316,13 @@ end
         title := "Simulated data"
         xsim
     end
+end
+
+@recipe function f(T, YY::NTuple{N, HittingTime}, sol::EnsembleSolution) where N
+    D = zeros(length(T), N)
+    for (i,t) in enumerate(T)
+        D[i,:] .= _proportion(t, YY, sol)
+    end
+    xticks := 0:90:maximum(T)
+    (T, D)
 end

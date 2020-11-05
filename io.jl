@@ -132,7 +132,7 @@ function aload(attr_name, LT::Symbol, Names::NTuple{N, Symbol}; fn::String="elec
     g1 = exists(fid, g1_name) ? fid[g1_name] : error("No $LT data")
     g2 = exists(g1, g2_name) ? g1[g2_name] : error("No $Names data for $LT")
 
-    has(attrs(g2), String(attr_name)) || error("No $attr_name attribute for $LT and $Names")
+    exists(attrs(g2), String(attr_name)) || error("No $attr_name attribute for $LT and $Names")
     a = read(attrs(g2), String(attr_name))
     close(fid)
     return a

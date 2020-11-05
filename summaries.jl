@@ -132,6 +132,11 @@ get_options(Y::HittingTime) = (save_idxs=1, callback=_make_callback(Y))
 (Y::T_pos)(p::ComplexF64) = (abs2(p)>Y.pbar2)&&(abs(imag(p))<real(p))
 (Y::T_neg)(p::ComplexF64) = (abs2(p)>Y.pbar2)&&(-abs(imag(p))>real(p))
 
+function _proportion(t, YY::NTuple{N, HittingTime}, sol::EnsembleSolution) where N
+    tp = get_timepoint(sol, t)
+    return [mean(Y, tp) for Y in YY]
+end
+
 ###########
 
 struct IsPolarised <: AnalysisSummary
