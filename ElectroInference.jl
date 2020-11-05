@@ -11,6 +11,11 @@ using RecipesBase, LaTeXStrings
 
 export rand, pdf, logpdf, sample, mean
 
+export par_names, par_names_NoEF
+export prior_support
+export combination_powerset
+export get_par_names
+
 const par_names = (:v, :EB_on, :EB_off, :D, :γ1, :γ2, :γ3, :γ4)
 const par_names_NoEF = par_names[1:4]
 ## Define possible priors
@@ -24,6 +29,8 @@ const prior_support = [
     Uniform(0,2),
     Uniform(0,2),
 ]
+const combination_powerset = powerset([1,2,3,4])
+get_par_names(X) = par_names[[1,2,3,4,(Int(4).+X)...]]
 
 include("observations.jl")
 include("parameters.jl")
@@ -33,11 +40,10 @@ include("stochastic_simulations.jl")
 include("synthetic_likelihoods.jl")
 include("conditional_expectations.jl")
 include("inference_batch.jl")
+include("selection.jl")
 include("io.jl")
 include("recipes.jl")
 
-export par_names, par_names_NoEF
-export prior_support
 export u_NoEF, u_EF, u_switch, u_stop
 export P_NoEF, P_EF
 export Y_NoEF, Y_EF
@@ -65,6 +71,9 @@ const yobs_EF = summarise(xobs_EF, InferenceSummary())
 
 # For analysis purposes
 # ConditionalExpectation(b_NoEF, S_NoEF(), n=500)
+
+P_switch(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), u_switch)
+P_stop(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), u_stop)
 
 const long_tspan = (0.0, 1800.0)
 P_NoEF_0(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(0), NoEF(), tspan=long_tspan)

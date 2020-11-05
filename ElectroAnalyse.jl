@@ -53,7 +53,7 @@ function see_velocities(; ht=600, kwargs...)
 end
 
 export b_NoEF
-const b_NoEF = load("electro_data", L_NoEF, (:v, :EB_on, :EB_off, :D))
+const b_NoEF = load("electro_data", :L_NoEF, (:v, :EB_on, :EB_off, :D))
 
 # Fig. 2 --- posterior_NoEF
 
@@ -75,7 +75,9 @@ export posterior_NoEF_2d
 function posterior_NoEF_2d(; ht=2*colwidth, kwargs...)
     parametergrid(b_NoEF.θ, [1,2,3,4];
         size=(2*colwidth, ht),
-        titlefontsize=11,
+        titlefontsize=8,
+        labelfontsize=8,
+        tickfontsize=6,
         kwargs...
     )
 end
