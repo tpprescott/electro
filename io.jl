@@ -1,7 +1,7 @@
 export save, load
 
 # SAVING
-function save(b::InferenceBatch{Names}, LT::Symbol, fn::String="electro_data") where Names
+function save(b::InferenceBatch{Names}, LT::Symbol; fn::String="electro_data") where Names
     eval(LT) <: SyntheticLogLikelihood || error("Wrong symbol, mush --- $(eval(LT)) is not subtype of SyntheticLogLikelihood")
     
     fid = h5open(fn*".h5", "cw")
@@ -30,7 +30,7 @@ function save(b::InferenceBatch{Names}, LT::Symbol, fn::String="electro_data") w
     close(fid)
 end
 
-function save(c::ConditionalExpectation, ES::Symbol, fn::String="electro_data")
+function save(c::ConditionalExpectation, ES::Symbol; fn::String="electro_data")
     eval(ES) <: EmpiricalSummary || error("Wrong symbol, mush --- $(eval(ES)) is not subtype of EmpiricalSummary")
     
     fid = h5open(fn*".h5", "cw")
@@ -54,6 +54,26 @@ function save(c::ConditionalExpectation, ES::Symbol, fn::String="electro_data")
     close(fid)
 end
 
+function asave(a, attr_name, LT::Symbol, Names::NTuple{N, Symbol}; fn::String="electro_data") where N
+
+    eval(LT) <: SyntheticLogLikelihood || error("Wrong symbol, mush --- $(eval(LT)) is not subtype of SyntheticLogLikelihood")
+    fid = h5open(fn*".h5", "cw")
+    
+    g1_name = String(LT)
+    g2_name = *(String.(Names)...)
+    
+    g1 = exists(fid, g1_name) ? fid[g1_name] : g_create(fid, g1_name)
+    g2 = exists(g1, g2_name) ? g1[g2_name] : g_create(g1, g2_name)
+    
+    overwrite_flag = has(g2, String(attr_name))
+    if overwrite_flag
+        @info "Overwriting $attr_name attribute for $LT, $Names data"
+        a_delete(g2, String(attr_name))
+    end
+    attrs(g2)[String(attr_name)] = a
+    close(fid)
+end
+
 
 ###### LOADING INFERENCE BATCHES
 
@@ -66,7 +86,7 @@ function InferenceBatch(G::HDF5Group)
     return InferenceBatch(P, ell, log_sl)
 end
 
-function load(fn::String, LT::Symbol, Names::NTuple{N, Symbol}) where N
+function load(LT::Symbol, Names::NTuple{N, Symbol}; fn::String="electro_data") where N
     eval(LT) <: SyntheticLogLikelihood || error("Wrong symbol, mush --- $(eval(LT)) is not subtype of SyntheticLogLikelihood")
     fid = h5open(fn*".h5", "r")
     g1_name = String(LT)
@@ -80,17 +100,6 @@ function load(fn::String, LT::Symbol, Names::NTuple{N, Symbol}) where N
     return b
 end
 
-function load(fn::String, LT::Symbol)
-    eval(LT) <: SyntheticLogLikelihood || error("Wrong symbol, mush --- $(eval(LT)) is not subtype of SyntheticLogLikelihood")
-    fid = h5open(fn*".h5", "r")
-
-    g_name = String(LT)
-    g = exists(fid, g_name) ? fid[g_name] : error("No data for any parameter space with synthetic likelihood type $LT")
-
-    bvec = map(InferenceBatch, g)
-    close(fid)
-    return bvec
-end
 
 ########## LOAD CONDITIONAL EXPECTATIONS
 
@@ -100,16 +109,30 @@ function ConditionalExpectation(G::HDF5Group, Names)
     return ConditionalExpectation(D, ell, Names)
 end
 
-function load(fn::String, ES::Symbol)
+function load(ES::Symbol; fn::String="electro_data")
     eval(ES) <: EmpiricalSummary || error("Wrong symbol, mush --- $(eval(ES)) is not subtype of EmpiricalSummary")
     fid = h5open(fn*".h5", "r")
     g_name = String(ES)
 
     g = exists(fid, g_name) ? fid[g_name] : error("No data for summary type $ES")
-
     
     c = ConditionalExpectation(g2, getnames(eval(ES)))
     close(fid)
     return c
 end
 
+function aload(attr_name, LT::Symbol, Names::NTuple{N, Symbol}; fn::String="electro_data") where N
+    eval(LT) <: SyntheticLogLikelihood || error("Wrong symbol, mush --- $(eval(LT)) is not subtype of SyntheticLogLikelihood")
+    fid = h5open(fn*".h5", "cw")
+    
+    g1_name = String(LT)
+    g2_name = *(String.(Names)...)
+    
+    g1 = exists(fid, g1_name) ? fid[g1_name] : error("No $LT data")
+    g2 = exists(g1, g2_name) ? g1[g2_name] : error("No $Names data for $LT")
+
+    has(attrs(g2), String(attr_name)) || error("No $attr_name attribute for $LT and $Names")
+    a = read(attrs(g2), String(attr_name))
+    close(fid)
+    return a
+end
