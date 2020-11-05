@@ -53,7 +53,7 @@ function see_velocities(; ht=600, kwargs...)
 end
 
 export b_NoEF
-const b_NoEF = load("electro_data", :L_NoEF, (:v, :EB_on, :EB_off, :D))
+const b_NoEF = load(:L_NoEF, (:v, :EB_on, :EB_off, :D), fn="electro_data")
 
 # Fig. 2 --- posterior_NoEF
 

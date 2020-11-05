@@ -59,7 +59,7 @@ function (::S_NoEF)(θ::ParameterVector; n=500, y=zeros(Float64, 3, n))
     S = (
         TrajectoryRandomVariable(T_polarise(pbar2(θ)), P_NoEF_0(θ)), 
         TrajectoryRandomVariable(T_depolarise(pbar2(θ)), P_NoEF_1(θ)),
-        TrajectoryRandomVariable(IsPolarised(pbar2(θ),tspan), P_NoEF_0(θ)),
+        TrajectoryRandomVariable(IsPolarised(pbar2(θ),long_tspan), P_NoEF_0(θ)),
     )
     D = mean(y, S...)
 end
