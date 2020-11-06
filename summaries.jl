@@ -163,7 +163,20 @@ function _make_callback(Y::T1_lt_T2)
 end
 get_options(Y::T1_lt_T2) = (save_idxs=1, callback=_make_callback(Y))
 
-(Π::T1_lt_T2)(sol) = Π.Time1(sol)<Π.Time2(sol)
+function (Π::T1_lt_T2)(sol)
+    # Assumes (see callback) we stopped the simulation at one of the two hitting times
+    p = sol[end]
+    if Π.Time1(p)
+        return true
+    elseif Π.Time2(p)
+        return false
+    else
+        @info "Neither region hit by t = $(sol.t[end])"
+        return rand([true, false])
+        # Should implement an error type that tells simulator to carry on
+        # As with hitting times above...
+    end
+end
 function (Π::T1_lt_T2)(y, sol) 
     y[1] = Π(sol)
 end
