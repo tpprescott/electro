@@ -15,7 +15,7 @@ const vx = -2:.01:3
 const vy = -2:0.01:2
 
 export see_velocities
-function see_velocities(; ht=600, kwargs...)
+function see_velocities(; ht=1.5*colwidth, kwargs...)
     v0 = θ_0[1]
     f0 = plot(θ_0, vx, vy, title="Autonomous model", legend=:none,
         xticks=([0, v0], [L"0", L"v"]),
@@ -38,17 +38,16 @@ function see_velocities(; ht=600, kwargs...)
         yticks=([0, (1+γ2)*v1],
             [
                 L"0",
-                L"1 + \gamma_2 v",
+                L"(1 + \gamma_2) v",
             ]
         ),
-        xrotation=45,
+        xrotation=15,
+        yrotation=15,
     )
     return plot(f0, f1;
     link=:all,
     tick_direction=:out,
     layout=(2,1),
-    titlefontsize=11,
-    tickfontsize=8,
     size=(colwidth, ht),
     kwargs...)
 end
@@ -65,8 +64,6 @@ function posterior_NoEF(; ht=2*colwidth, kwargs...)
         b_NoEF;
         layout=(4,1),
         size = (colwidth, ht),
-        titlefontsize=11,
-        labelfontsize=8,
         kwargs...
     )
 end
@@ -77,9 +74,6 @@ export posterior_NoEF_2d
 function posterior_NoEF_2d(; ht=2*colwidth, kwargs...)
     parametergrid(b_NoEF.θ, [1,2,3,4];
         size=(2*colwidth, ht),
-        titlefontsize=8,
-        labelfontsize=8,
-        tickfontsize=6,
         kwargs...
     )
 end
@@ -101,7 +95,7 @@ function predictive_NoEF(; ht=2*colwidth, kwargs...)
     plot(c_NoEF;
         layout=(3,1),
         size=(colwidth, ht),
-        infty=[180, 180, 1],
+        infty=[180, 90, 1],
         kwargs...,
     )
 end
@@ -139,14 +133,12 @@ export see_model_selection
 function see_model_selection(μ::Vararg{Any, N}; ht=N*colwidth, kwargs...) where N
     fset = objective_function.(μ)
     fig = plot(fset...;
-        titlefontsize=11,
-        labelfontsize=8,
-        tickfontsize=6,
         layout=(2,1),
         size=(colwidth,ht),
         kwargs...
     )
 end
+see_model_selection(; kwargs...) = see_model_selection(0, 2; kwargs...)
 
 ############# Use best model
 
@@ -161,37 +153,8 @@ function posterior_EF(; ht=1.5*colwidth, kwargs...)
         5:7;
         layout=(3,1),
         size = (colwidth, ht),
-        titlefontsize=11,
-        labelfontsize=8,
         kwargs...
     )
-end
-
-# Fig. 6 (SI) --- Compare posteriors
-function posterior_compare(; ht=2*colwidth, kwargs...)
-    fig = plot(
-        b_124,
-        1:4;
-        layout=(4,1),
-        size = (colwidth, ht),
-        titlefontsize=11,
-        labelfontsize=8,
-        label= L"\pi(\theta | \mathbf{x}_\mathrm{NoEM})",
-        kwargs...
-    )
-    plot!(
-        fig,
-        b_NoEF,
-        1:4,
-        linestyle=:dot,
-        label= L"\pi(\theta | \mathbf{x}_\mathrm{NoEM}, \mathbf{x}_\mathrm{EM})",
-    )
-    plot!(
-        fig,
-        subplot=1,
-        legend=true,
-    )
-    fig
 end
 
 
@@ -200,12 +163,36 @@ end
 function posterior_EF_2d(; ht=3*colwidth, kwargs...)
     parametergrid(b_124.θ, 1:7;
         size=(3*colwidth, ht),
-        titlefontsize=8,
-        labelfontsize=8,
-        tickfontsize=6,
         kwargs...
     )
 end
+
+
+# Fig. 6 (SI) --- Compare posteriors
+function posterior_compare(; ht=2*colwidth, kwargs...)
+    fig = plot(
+        b_124,
+        1:4;
+        layout=(4,1),
+        size = (colwidth, ht),
+        label= L"\pi(\theta | \mathbf{x}_\mathrm{NoEM}, \mathbf{x}_\mathrm{EM})",
+    )
+    plot!(
+        fig,
+        b_NoEF,
+        1:4,
+        linestyle=:dot,
+        label= L"\pi(\theta | \mathbf{x}_\mathrm{NoEM})",
+    )
+    plot!(
+        fig,
+        subplot=1,
+        legend=true,
+    )
+    plot!(fig; kwargs...)
+    fig
+end
+
 
 
 # Fig. 7 --- Compare EF simulation and data
@@ -255,8 +242,6 @@ function view_step(θ = θbar; ht=2.5*colwidth, kwargs...)
         size=(colwidth, ht),
         xlabel=L"x",
         ylabel=L"y",
-        labelfontsize=8,
-        titlefontsize=11,
         framestyle=:box,
         link=:all,
         kwargs...
@@ -266,7 +251,7 @@ end
 # Fig. 9 --- Polarity diagram
 
 export coarse_polarity_diagram
-function coarse_polarity_diagram(; kwargs...)
+function coarse_polarity_diagram(; ht=colwidth, annfontsize=10, kwargs...)
     Ω0 = Plots.Shape(Plots.partialcircle(0, 2π, 100, 0.6))
     Ωp = Plots.Shape([0,2,2], [0,2,-2])
     Ωm = Plots.Shape([0,-2,-2], [0,2,-2])
@@ -277,22 +262,21 @@ function coarse_polarity_diagram(; kwargs...)
         ratio=:equal,
         lims=(-1.5,1.5),
         title="Coarse-grained polarity",
-        xlabel=L"p_x",
-        ylabel=L"p_y",
-        titlefontsize=11pt,
+        ticks=([0.0, 0.6], [L"0", L"\bar p"]),
+        tick_direction = :out,
     )
     plot!(fig, Ωp, c=1)
     plot!(fig, Ωm, c=2)
     plot!(fig, Ωperp, c=3)
     plot!(fig, Ω0, c=4)
 
-    annotate!(fig, 0.0, 0.0, L"\Omega_0")
-    annotate!(fig, 0.0, 1.0, L"\Omega_\perp")
-    annotate!(fig, 0.0, -1.0, L"\Omega_\perp")
-    annotate!(fig, 1.0, 0.0, L"\Omega_+")
-    annotate!(fig, -1.0, 0.0, L"\Omega_-")
+    annotate!(fig, 0.0, 0.0, text(L"\Omega_0", annfontsize))
+    annotate!(fig, 0.0, 1.0, text(L"\Omega_\perp", annfontsize))
+    annotate!(fig, 0.0, -1.0, text(L"\Omega_\perp", annfontsize))
+    annotate!(fig, 1.0, 0.0, text(L"\Omega_+", annfontsize))
+    annotate!(fig, -1.0, 0.0, text(L"\Omega_-", annfontsize))
 
-    plot!(fig; kwargs...)
+    plot!(fig; size=(colwidth, ht), kwargs...)
     fig
 end
 
@@ -308,33 +292,39 @@ function see_coarse_polarity(θ = θbar; ht=1.5*colwidth, kwargs...)
     fig1 = plot(0:0.1:180, YY, sol_switch, title=L"\mathbf{u}_\mathrm{switch}", labels=["Depolarised" "Positive" "Negative" "Perpendicular"], c=[4 1 2 3])
     fig2 = plot(0:0.1:180, YY, sol_stop, title=L"\mathbf{u}_\mathrm{stop}", legend=:none, c=[4 1 2 3])
 
-    fig = plot(fig1, fig2, layout=(2,1), size=(colwidth, ht), kwargs...)
+    fig = plot(fig1, fig2; layout=(2,1), size=(colwidth, ht), kwargs...)
     fig
 end
 
 # Fig. 10 --- Posterior predictive switching stats
-export predictive_Switch, predictive_Stop
+export predictive_step
 
 c_Switch = load(:S_Switch)
 c_Stop = load(:S_Stop)
 
-function predictive_Switch(; ht=2*colwidth, kwargs...)
-    plot(c_Switch;
+function predictive_step(; ht=2*colwidth, kwargs...)
+    fig = plot(;
         layout=(3,1),
         size=(colwidth, ht),
-        infty=[180, 180, 0.5],
-        kwargs...,
     )
+    plot!(fig, c_Switch;
+        infty=[180, 360, 1],
+        c=1,
+        label="Switch",
+    )
+    plot!(fig, c_Stop;
+        infty=[180, 360, 1],
+        c=2,
+        label="Stop",
+    )
+    plot!(fig;
+        subplot=1,
+        legend=:true)
+    plot!(fig;
+        kwargs...
+    )
+    fig
 end
 
-# Fig. 10 --- Posterior predictive stopping stats
-function predictive_Stop(; ht=2*colwidth, kwargs...)
-    plot(c_Stop;
-        layout=(3,1),
-        size=(colwidth, ht),
-        infty=[180, 180, 0.5],
-        kwargs...,
-    )
-end
 
 end
