@@ -81,7 +81,7 @@ end
 # Fig. 3 --- compare_NoEF
 
 export compare_NoEF
-function compare_NoEF(θ = mean(b_NoEF); ht=2*colwidth, kwargs...)
+function compare_NoEF(θ = mean(b_NoEF); ht=1.5*colwidth, kwargs...)
     plot(θ, NoEF; 
         size = (colwidth, ht),
         kwargs...,
@@ -91,7 +91,7 @@ end
 # Fig.4 --- NoEF posterior distribution of simulation outputs
 
 export predictive_NoEF
-function predictive_NoEF(; ht=2*colwidth, kwargs...)
+function predictive_NoEF(; ht=1.5*colwidth, kwargs...)
     plot(c_NoEF;
         layout=(3,1),
         size=(colwidth, ht),
@@ -197,7 +197,7 @@ end
 
 # Fig. 7 --- Compare EF simulation and data
 export compare_EF
-function compare_EF(θ = mean(b_124); ht=2*colwidth, kwargs...)
+function compare_EF(θ = mean(b_124); ht=1.5*colwidth, kwargs...)
     plot(θ, ConstantEF; 
         size = (colwidth, ht),
         kwargs...,
@@ -302,7 +302,7 @@ export predictive_step
 c_Switch = load(:S_Switch)
 c_Stop = load(:S_Stop)
 
-function predictive_step(; ht=2*colwidth, kwargs...)
+function predictive_step(; ht=1.5*colwidth, kwargs...)
     fig = plot(;
         layout=(3,1),
         size=(colwidth, ht),
