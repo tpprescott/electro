@@ -14,8 +14,8 @@ const D_par_str = Dict(zip(par_names, par_str))
 
 const par_titles = (
     "Polarised cell speed",
-    "Energy barrier to polarisation",
-    "Energy barrier to depolarisation",
+    "Polarisation barrier",
+    "Depolarisation barrier",
     "Diffusion constant",
     "Velocity bias",
     "Speed increase",
@@ -57,7 +57,9 @@ end
     yticks --> :none
     legend := :none
     title --> D_par_titles[Names[I]]
-    seriestype --> :stephist
+    seriestype --> :histogram
+    linecolor --> 1
+    seriescolor --> 1
     normalize --> :pdf
     selectdim(P.θ, 1, I)
 end
@@ -150,7 +152,7 @@ const ss_str = (
     L"\bar T_+~\mathrm{min}",
     L"\bar T_\perp~\mathrm{min}",
     L"\bar \Pi_\infty",
-    L"\bar P_{\perp, -}",
+    L"\bar P_{\perp \rightarrow -}",
 )
 const D_ss_str = Dict(zip(ss_names, ss_str))
 
@@ -298,8 +300,8 @@ end
     layout --> (2,1)
     legend := :none
     framestyle --> :origin
-    xguide := L"x"
-    yguide := L"y"
+    xguide --> L"x"
+    yguide --> L"y"
     aspect_ratio := :equal
     link := :all
     titlefontsize --> 11
