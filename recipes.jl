@@ -5,7 +5,7 @@ const par_str = (
     L"\Delta W_{on}",
     L"\Delta W_{off}",
     L"D~\mathrm{min}^{-1}",
-    L"\gamma_1",
+    L"\gamma_1^{~}",
     L"\gamma_2",
     L"\gamma_3",
     L"\gamma_4",
@@ -300,24 +300,27 @@ end
     layout --> (2,1)
     legend := :none
     framestyle --> :origin
-    xguide --> L"x"
-    yguide --> L"y"
     aspect_ratio := :equal
     link := :all
     titlefontsize --> 11
     tickfontsize --> 8
+    xguide --> ""
+    yguide --> ""
+    xticks --> []
+    yticks --> []
 
     @series begin
         subplot := 1
-        title := "Observed data"
+        title := "Observed positions"
         xobs
     end
 
     @series begin
         subplot := 2
-        title := "Simulated data"
+        title := "Simulated positions"
         xsim
     end
+
 end
 
 @recipe function f(T, YY::NTuple{N, HittingTime}, sol::EnsembleSolution) where N

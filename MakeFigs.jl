@@ -2,7 +2,7 @@ include("ElectroAnalyse.jl")
 import Plots.savefig
 using .ElectroAnalyse, LaTeXStrings
 
-sizes = (titlefontfamily="helvetica", titlefontsize=10, labelfontsize=8)
+sizes = (titlefontfamily="helvetica", titlefontsize=8, labelfontsize=6, tickfontsize=6)
 
 savefig(fig, fn, pth) = savefig(fig, pth*fn)
 pth = "figs/"

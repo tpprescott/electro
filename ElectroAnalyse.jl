@@ -83,10 +83,24 @@ end
 
 export compare_NoEF
 function compare_NoEF(θ = mean(b_NoEF); ht=1.5*colwidth, kwargs...)
-    plot(θ, NoEF; 
+    fig = plot(θ, NoEF; 
         size = (colwidth, ht),
         kwargs...,
     )
+
+    x = xlims(fig[2])[2]-20
+    y = ylims(fig[2])[1]+10
+
+    for sub in [1,2]
+    plot!(fig,
+        [x-100, x], [y, y];
+        annotations = (x-50, y+10, Plots.text(L"100 ~\mu m",8,:bottom)),
+        color=:black,
+        linewidth=4,
+        subplot = sub,
+        )
+    end
+    fig
 end
 
 # Fig.4 --- NoEF posterior distribution of simulation outputs
@@ -167,7 +181,7 @@ end
 function see_model_selection(; kwargs...) 
     fig = see_model_selection(0, 2)
     plot!(fig, subplot=1, title="Model fit to data")
-    plot!(fig, subplot=2, title="Fit, less parameter cost")
+    plot!(fig, subplot=2, title="Fit subtract parameter cost")
     plot!(fig; kwargs...)
     fig
 end
@@ -233,28 +247,43 @@ end
 # Fig. 7 --- Compare EF simulation and data
 export compare_EF
 function compare_EF(θ = mean(b_124); ht=1.5*colwidth, kwargs...)
-    plot(θ, ConstantEF; 
+    fig = plot(θ, ConstantEF; 
         size = (colwidth, ht),
         kwargs...,
     )
+
+    x = xlims(fig[2])[2]-20
+    y = ylims(fig[2])[1]+10
+
+    for sub in [1,2]
+    plot!(fig,
+        [x-100, x], [y, y];
+        annotations = (x-50, y+10, Plots.text(L"100 ~\mu m",8,:bottom)),
+        color=:black,
+        linewidth=4,
+        subplot=sub,
+        )
+    end
+    fig
 end
+
 
 # Fig.6-7 --- Smush
 
 export smush_EF
 function smush_EF(; kwargs...)
     
-    f6 = posterior_EF(; layout=(1,3), seriestype=:histogram, seriescolor=1, linecolor=1, ylim=:auto)
+    f6 = posterior_EF(; layout=(3,1), seriestype=:histogram, seriescolor=1, linecolor=1, ylim=:auto)
     plot!(f6, subplot=1, title="(a) Velocity bias")
     plot!(f6, subplot=2, title="(b) Speed increase")
     plot!(f6, subplot=3, title="(c) Polarity bias")
     
-    f7 = compare_EF(layout=(1,2), xlabel="", ylabel="")
+    f7 = compare_EF(layout=(2,1), xlabel="", ylabel="")
     plot!(f7, subplot=1, title="(d) Observed positions")
     plot!(f7, subplot=2, title="(e) Simulated positions")
 
     l = @layout [a{0.5w} b{0.5w}]
-    f = plot(f6, f7; size=(2colwidth, 0.7colwidth), layout=l, kwargs...)
+    f = plot(f6, f7; size=(colwidth, colwidth), layout=l, kwargs...)
     f
 end
 
