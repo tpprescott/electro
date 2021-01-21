@@ -222,7 +222,7 @@ function posterior_compare(; ht=colwidth, kwargs...)
         layout=(2,2),
         seriestype=:stephist,
         size = (colwidth, ht),
-        label= L"\pi(\theta | \mathbf{x}_\mathrm{NoEM}, \mathbf{x}_\mathrm{EM})",
+        label= L"\pi(\theta | \mathbf{x}_\mathrm{NoEF}, \mathbf{x}_\mathrm{EF})",
     )
     plot!(
         fig,
@@ -230,8 +230,7 @@ function posterior_compare(; ht=colwidth, kwargs...)
         1:4,
         seriestype=:stephist,
         linecolor=2,
-        linestyle=:dot,
-        label= L"\pi(\theta | \mathbf{x}_\mathrm{NoEM})",
+        label= L"\pi(\theta | \mathbf{x}_\mathrm{NoEF})",
     )
     plot!(
         fig,
@@ -311,24 +310,42 @@ function _post(sol, n=5; kwargs...)
     fig
 end
 
-function view_step(θ = θbar; ht=1.5*colwidth, kwargs...)
+function view_step(θ = θbar; ht=0.75*colwidth, kwargs...)
     sol_switch = rand(P_switch(θ), 500, save_idxs=2)
     sol_stop = rand(P_stop(θ), 500, save_idxs=2)
 
-    f1 = _pre(sol_switch, title=L"(\mathrm{a})~\mathbf{u}_\mathrm{switch}~:~0<t<90~\mathrm{min}")
-    f2 = _post(sol_switch, title=L"(\mathrm{b})~\mathbf{u}_\mathrm{switch}~:~90<t<180~\mathrm{min}", legend=:none)
-    f3 = _pre(sol_stop, title=L"(\mathrm{c})~\mathbf{u}_\mathrm{stop}~:~0<t<90~\mathrm{min}", legend=:none)
-    f4 = _post(sol_stop, title=L"(\mathrm{d})~\mathbf{u}_\mathrm{stop}~:~90<t<180~\mathrm{min}", legend=:none)
+    f1 = _pre(sol_switch, title="(a) Before switch", legend=:none)
+    f2 = _post(sol_switch, title="(b) After switch", legend=:topright)
+    f3 = _pre(sol_stop, title="(c) Before stop", legend=:none)
+    f4 = _post(sol_stop, title="(d) After stop", legend=:none)
 
-    plot(f1,f2,f3,f4; 
+    fig = plot(f1,f2,f3,f4; 
         layout=(2,2),
-        size=(2colwidth, ht),
-        xlabel=L"x",
-        ylabel=L"y",
-        framestyle=:box,
+        size=(colwidth, ht),
+        xticks=[],
+        yticks=[],
+        xlabel="",
+        ylabel="",
+        framestyle=:origin,
         link=:all,
         kwargs...
     )
+
+    x = xlims(fig[4])[2]-30
+    y = ylims(fig[4])[1]+10
+
+    for sub in [2]
+        plot!(fig,
+            [x-100, x], [y, y];
+            annotations = (x-50, y+10, Plots.text(L"100 ~\mu m",8,:bottom)),
+            label="",
+            color=:black,
+            linewidth=4,
+            subplot = sub,
+        )
+    end
+    fig
+
 end
 
 # Fig. 9 --- Polarity diagram
@@ -380,10 +397,10 @@ function see_coarse_polarity(θ = θbar; ht=0.75*colwidth, kwargs...)
     sol_switch = rand(P_switch(θ), 500, save_idxs=1)
     sol_stop = rand(P_stop(θ), 500, save_idxs=1)
     
-    fig1 = plot(0:0.1:180, YY, sol_switch, title="(a) Switching EM field", labels=["Depolarised" "Positive" "Negative" "Perpendicular"], c=[4 1 2 3])
-    fig2 = plot(0:0.1:180, YY, sol_stop, title="(b) Stopping EM field", legend=:none, c=[4 1 2 3])
+    fig1 = plot(0:0.1:180, YY, sol_switch, title="(a) Switching EF", labels=["Depolarised" "Positive" "Negative" "Perpendicular"], c=[4 1 2 3])
+    fig2 = plot(0:0.1:180, YY, sol_stop, title="(b) Stopping EF", legend=:none, c=[4 1 2 3])
 
-    fig = plot(fig1, fig2; layout=(1,2), size=(1.5*colwidth, ht), kwargs...)
+    fig = plot(fig1, fig2; layout=(1,2), size=(1.5*colwidth, ht), xlabel="Time (min)", ylabel="Proportion", kwargs...)
     fig
 end
 

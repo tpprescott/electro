@@ -63,8 +63,8 @@ P_EF(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), ConstantEF(1))
 Y_NoEF(θ) = TrajectoryRandomVariable(InferenceSummary(1.055125), P_NoEF(θ))
 Y_EF(θ) = TrajectoryRandomVariable(InferenceSummary(0.91899), P_EF(θ))
 
-const xobs_NoEF = observation_filter(CSV.read("No_EF.csv"))
-const xobs_EF = observation_filter(CSV.read("With_EF.csv"))
+const xobs_NoEF = observation_filter(CSV.File("No_EF.csv"))
+const xobs_EF = observation_filter(CSV.File("With_EF.csv"))
 # Summarise - data is already pixellated, no need to do so again.
 const yobs_NoEF = summarise(xobs_NoEF, InferenceSummary())
 const yobs_EF = summarise(xobs_EF, InferenceSummary())

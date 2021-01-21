@@ -1,11 +1,12 @@
 #### PARAMETER DETAILS
+using Printf
 
 const par_str = (
     L"v~\mathrm{\mu m~min}^{-1}",
-    L"\Delta W_{on}",
-    L"\Delta W_{off}",
+    L"\Delta W_{\mathrm{on}}",
+    L"\Delta W_{\mathrm{off}}",
     L"D~\mathrm{min}^{-1}",
-    L"\gamma_1^{~}",
+    L"\gamma_1",
     L"\gamma_2",
     L"\gamma_3",
     L"\gamma_4",
@@ -125,8 +126,16 @@ end
             k+=1
             @series begin
                 subplot := k
-                xlims := :auto
-                ylims := :auto
+
+                xx = quantile(selectdim(P, 1, j), [0.005, 0.5, 0.995])
+                yy = quantile(selectdim(P, 1, i), [0.005, 0.5, 0.995])
+
+                xlims := (minimum(xx), maximum(xx))
+                ylims := (minimum(yy), maximum(yy))
+
+                xticks := (xx, [@sprintf("%5.2f", xo) for xo in xx]) 
+                yticks := (yy, [@sprintf("%5.2f", yo) for yo in yy])
+
                 P, j, i
             end
         end
