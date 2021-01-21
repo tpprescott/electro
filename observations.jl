@@ -22,6 +22,11 @@ function observation_filter(df::DataFrame)
     return reshape(z, 37, 50)
 end
 
+function observation_filter(csv::CSV.File)
+    z = complex.(csv.x, csv.y)
+    return reshape(z, 37, 50)
+end
+
 export pre_step_mean, post_step_mean
 function pre_step_mean(sol::EnsembleSolution)
     u = timepoint_mean(sol, 0:5:90)
