@@ -1,5 +1,8 @@
 # Quantifying the impact of electric fields on single-cell motility
-Code associated with the bioRxiv preprint
+TP Prescott, K Zhu, M Zhao, and RE Baker (2021)
+
+Code associated with the bioRxiv preprint:
+https://www.biorxiv.org/content/10.1101/2021.01.22.427762v1
 
 ### Paper abstract
 Cell motility in response to environmental cues forms the basis of many developmental processes in multicellular organisms. 
