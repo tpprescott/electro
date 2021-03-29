@@ -68,8 +68,8 @@ Y_Ctrl(θ) = TrajectoryRandomVariable(InferenceSummary(), P_Ctrl(θ))
 Y_EF(θ) = TrajectoryRandomVariable(InferenceSummary(0.91899), P_EF(θ))
 
 const xobs_NoEF = observation_filter(CSV.File("No_EF.csv"))
-const xobs_Ctrl_1 = observation_filter(CSV.File("data/test/Ctrl-1.csv"))
-const xobs_Ctrl_2 = observation_filter(CSV.File("data/test/Ctrl-2.csv"))
+const xobs_Ctrl_1 = observation_filter(CSV.File("data/test/Ctrl-1.csv"), ninterval=61)
+const xobs_Ctrl_2 = observation_filter(CSV.File("data/test/Ctrl-2.csv"), ninterval=61)
 const xobs_EF = observation_filter(CSV.File("With_EF.csv"))
 # Summarise - data is already pixellated, no need to do so again.
 const yobs_NoEF = summarise(xobs_NoEF, InferenceSummary())
