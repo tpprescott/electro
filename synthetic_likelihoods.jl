@@ -18,6 +18,11 @@ struct L_NoEF{Y} <: SyntheticLogLikelihood
     L_NoEF(; data::Y=yobs_NoEF) where Y = new{Y}(data)
 end
 
+struct L_Ctrl{Y} <: SyntheticLogLikelihood
+    data::Y
+    L_Ctrl(; data::Y) where Y = new{Y}(data)
+end
+
 struct L_EF{Y} <: SyntheticLogLikelihood
     data::Y
     L_EF(; data::Y=yobs_EF) where Y = new{Y}(data)
@@ -33,6 +38,16 @@ function (L::L_NoEF)(θ::ParameterVector; n=500, y=zeros(Float64, 4, n))::Float6
     Y = Y_NoEF(θ)
     try
         D = empirical_fit(y, Y)
+        return sum(logpdf(D, L.data))
+    catch
+        return -Inf
+    end
+end
+
+function (L::L_Ctrl)(θ::ParameterVector; n=500, y=zeros(Float64, 4, n))::Float64
+    Y = Y_Ctrl(θ)
+    try
+        D = empirical_fit(y,Y)
         return sum(logpdf(D, L.data))
     catch
         return -Inf

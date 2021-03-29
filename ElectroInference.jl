@@ -45,10 +45,12 @@ include("io.jl")
 include("recipes.jl")
 
 export u_NoEF, u_EF, u_switch, u_stop
-export P_NoEF, P_EF
-export Y_NoEF, Y_EF
+export P_NoEF, P_EF, P_Ctrl
+export Y_NoEF, Y_EF, Y_Ctrl
 export xobs_NoEF, xobs_EF
 export yobs_NoEF, yobs_EF
+export xobs_Ctrl_1, xobs_Ctrl_2
+export yobs_Ctrl_1, yobs_Ctrl_2
 
 const u_NoEF = NoEF()
 const u_EF = ConstantEF(1)
@@ -56,17 +58,23 @@ const u_switch = StepEF(1, -1, 90)
 const u_stop = StepEF(1, 0, 90)
 
 P_NoEF(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), NoEF())
+P_Ctrl(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), NoEF(), tspan=(0.0,300.0))
 P_EF(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), ConstantEF(1))
 
 # Pixel size is 1.055125 μm for the NoEF data, and 0.91899 μm for (most of) the EF data
 
 Y_NoEF(θ) = TrajectoryRandomVariable(InferenceSummary(1.055125), P_NoEF(θ))
+Y_Ctrl(θ) = TrajectoryRandomVariable(InferenceSummary(), P_Ctrl(θ))
 Y_EF(θ) = TrajectoryRandomVariable(InferenceSummary(0.91899), P_EF(θ))
 
 const xobs_NoEF = observation_filter(CSV.File("No_EF.csv"))
+const xobs_Ctrl_1 = observation_filter(CSV.File("data/test/Ctrl-1.csv"))
+const xobs_Ctrl_2 = observation_filter(CSV.File("data/test/Ctrl-2.csv"))
 const xobs_EF = observation_filter(CSV.File("With_EF.csv"))
 # Summarise - data is already pixellated, no need to do so again.
 const yobs_NoEF = summarise(xobs_NoEF, InferenceSummary())
+const yobs_Ctrl_1 = summarise(xobs_Ctrl_1, InferenceSummary())
+const yobs_Ctrl_2 = summarise(xobs_Ctrl_2, InferenceSummary())
 const yobs_EF = summarise(xobs_EF, InferenceSummary())
 
 # For analysis purposes
