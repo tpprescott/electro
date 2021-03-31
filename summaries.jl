@@ -77,7 +77,7 @@ function (Y::InferenceSummary)(y, x::AbstractVector{ComplexF64})
     td = sum(dx)
     y[1] = abs(td)
     y[2] = sum(abs, dx)
-    y[3] = std(abs.(dx))
+    y[3] = sqrt(sum(abs2, dx))
     y[4] = atan(imag(td), real(td))
     y
 end
