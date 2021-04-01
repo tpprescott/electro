@@ -58,14 +58,17 @@ const u_switch = StepEF(1, -1, 90)
 const u_stop = StepEF(1, 0, 90)
 
 P_NoEF(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), NoEF())
-P_Ctrl(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), NoEF(), tspan=(0.0,300.0))
 P_EF(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), ConstantEF(1))
+
+P_Ctrl(θ) = TrajectoryDistribution(θ, RandomPolarised(0.1), NoEF(), tspan=(0.0,300.0))
 
 # Pixel size is 1.055125 μm for the NoEF data, and 0.91899 μm for (most of) the EF data
 
 Y_NoEF(θ) = TrajectoryRandomVariable(InferenceSummary(1.055125), P_NoEF(θ))
-Y_Ctrl(θ) = TrajectoryRandomVariable(InferenceSummary(), P_Ctrl(θ))
 Y_EF(θ) = TrajectoryRandomVariable(InferenceSummary(0.91899), P_EF(θ))
+
+Y_Ctrl(θ) = TrajectoryRandomVariable(InferenceSummary(), P_Ctrl(θ))
+
 
 const xobs_NoEF = observation_filter(CSV.File("No_EF.csv"))
 const xobs_Ctrl_1 = observation_filter(CSV.File("data/test/Ctrl-1.csv"), ninterval=61)
