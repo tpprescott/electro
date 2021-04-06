@@ -60,7 +60,7 @@ const u_stop = StepEF(1, 0, 90)
 P_NoEF(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), NoEF())
 P_EF(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), ConstantEF(1))
 
-P_Ctrl(θ) = TrajectoryDistribution(θ, RandomPolarised(0.1), NoEF(), tspan=(0.0,300.0))
+P_Ctrl(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), NoEF(), tspan=(0.0,300.0))
 
 # Pixel size is 1.055125 μm for the NoEF data, and 0.91899 μm for (most of) the EF data
 
