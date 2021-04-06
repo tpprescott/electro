@@ -5,7 +5,7 @@ using Statistics, StatsBase
 using DifferentialEquations, DifferentialEquations.EnsembleAnalysis
 using DataFrames, CSV
 using Distributed, ProgressMeter
-using Roots, LinearAlgebra
+using Polynomials, Roots, LinearAlgebra
 using HDF5
 using RecipesBase, LaTeXStrings
 
@@ -16,12 +16,11 @@ export prior_support
 export combination_powerset
 export get_par_names
 
-const par_names = (:v, :EB_on, :EB_off, :D, :γ1, :γ2, :γ3, :γ4)
-const par_names_NoEF = par_names[1:4]
+const par_names = (:v, :EB, :D, :γ1, :γ2, :γ3, :γ4)
+const par_names_NoEF = par_names[1:3]
 ## Define possible priors
 const prior_support = [
     Uniform(0,5),
-    Uniform(0,10),
     Uniform(0,10),
     Uniform(0,0.5),
     Uniform(0,2),
@@ -30,7 +29,7 @@ const prior_support = [
     Uniform(0,2),
 ]
 const combination_powerset = powerset([1,2,3,4])
-get_par_names(X) = par_names[[1,2,3,4,(Int(4).+X)...]]
+get_par_names(X) = par_names[[1,2,3,(Int(3).+X)...]]
 
 include("observations.jl")
 include("parameters.jl")

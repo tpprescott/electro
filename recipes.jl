@@ -3,8 +3,7 @@ using Printf
 
 const par_str = (
     L"v~\mathrm{\mu m~min}^{-1}",
-    L"\Delta W_{\mathrm{on}}",
-    L"\Delta W_{\mathrm{off}}",
+    L"\Delta W",
     L"D~\mathrm{min}^{-1}",
     L"\gamma_1",
     L"\gamma_2",
@@ -15,7 +14,6 @@ const D_par_str = Dict(zip(par_names, par_str))
 
 const par_titles = (
     "Polarised cell speed",
-    "Polarisation barrier",
     "Depolarisation barrier",
     "Diffusion constant",
     "Velocity bias",
@@ -234,8 +232,8 @@ end
     VelocityDistribution((θ_nt, vx, vy))
 end
 @recipe function f(θ::NamedTuple, vx, vy)
-    β, pbar2 = _map_barriers_to_coefficients(θ.EB_on, θ.EB_off)
-    W(p) = W_poly(β, pbar2)(abs2(p))
+    β = _map_barriers_to_coefficients(θ.EB)
+    W(p) = W_poly(β)(abs2(p))
     
     polarity_density(p) = exp(θ.γ4*real(p) - W(p))
     function get_pol(v)
