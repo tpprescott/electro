@@ -79,7 +79,7 @@ function smc(
     N::Int,
     B::InferenceBatch = InferenceBatch(N, π);
     N_T::Int,
-    σ=[0.1, 0.2, 0.01],
+    σ,
     kwargs...
 ) where Names
     

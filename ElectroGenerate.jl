@@ -7,15 +7,15 @@ using Combinatorics
 ############ Inference data
 
 # Start with NoEF
-function Posterior_NoEF(; fn::String="electro_data")
-    B = smc(L_NoEF(), Prior(), 2000, N_T=1000, alpha=0.8, Δt_min=1e-2)
+function Posterior_NoEF(; data, fn::String)
+    B = smc(L_Ctrl(; data=data), Prior(), 5000, N_T=1000, alpha=0.8, Δt_min=1e-2, σ=[0.1, 0.05, 0.01])
     save(B, :L_NoEF; fn=fn)
     return B
 end
 
 # Analyse NoEF results as a conditional expectation
-function EmpiricalSummary_NoEF(; fn::String="electro_data")
-    B = load(:L_NoEF, (:v, :EB_on, :EB_off, :D); fn=fn)
+function EmpiricalSummary_NoEF(; fn::String)
+    B = load(:L_NoEF, (:v, :EB, :D); fn=fn)
     C = ConditionalExpectation(B, S_NoEF(), n=500)
     save(C, :S_NoEF; fn=fn)
     return C
@@ -25,14 +25,15 @@ end
 # Set up the intermediate prior based on the NoEF output and evaluated against EF only
 function SequentialPosterior_EF(
     X;
-    fn::String="electro_data",
+    fn::String,
     kwargs...
 )
     π_X = Prior(X)
-    B0 = load(:L_NoEF, (:v, :EB_on, :EB_off, :D); fn=fn)
+    B0 = load(:L_NoEF, (:v, :EB, :D); fn=fn)
 
     B1 = InferenceBatch(π_X, B0)
-    smc(L_EF(), π_X, 2000, B1, N_T=1000, alpha=0.8, Δt_min=1e-2)
+    σ = vcat([0.1, 0.05, 0.01], 0.05*ones(length(X)))
+    smc(L_EF(), π_X, 2000, B1, N_T=1000, alpha=0.8, Δt_min=1e-2, σ=σ)
 
     save(B1, :L_EF; fn=fn)
     return B1

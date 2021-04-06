@@ -21,7 +21,7 @@ const par_names_NoEF = par_names[1:3]
 ## Define possible priors
 const prior_support = [
     Uniform(0,5),
-    Uniform(0,10),
+    Uniform(0,5),
     Uniform(0,0.5),
     Uniform(0,2),
     Uniform(0,2),

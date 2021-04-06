@@ -1,6 +1,6 @@
 export empirical_fit
 export SyntheticLogLikelihood
-export L_NoEF, L_EF, L_Joint
+export L_Ctrl, L_EF, L_Joint
 
 function empirical_fit(Z::TrajectoryRandomVariable, n::Int)
     y = rand(Z, n)
