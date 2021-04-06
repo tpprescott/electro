@@ -20,7 +20,7 @@ end
 function InferenceBatch(
     π::ParameterDistribution,
     B::InferenceBatch{par_names_NoEF},
-    K=MvNormal(4,0.01)
+    K=MvNormal(3,0.01)
 )
 
     N = length(B)
@@ -79,7 +79,7 @@ function smc(
     N::Int,
     B::InferenceBatch = InferenceBatch(N, π);
     N_T::Int,
-    σ=[0.1, 0.2, 0.2, 0.01],
+    σ=[0.1, 0.2, 0.01],
     kwargs...
 ) where Names
     
