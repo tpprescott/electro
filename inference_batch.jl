@@ -88,9 +88,9 @@ function smc(
     gen = zero(Int64)
 
 #    dim = length(Names)
-    K = MvNormal(σ)
 
     while true
+        K = MvNormal(σ ./ (10^temperature))
         gen += one(Int64)
         Δt, ess = smc_step(B, L, π, temperature; kwargs...)
         temperature += Δt
