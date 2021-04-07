@@ -20,11 +20,12 @@ end
 function InferenceBatch(
     π::ParameterDistribution,
     B::InferenceBatch{par_names_NoEF},
-    K=MvNormal(3,0.01)
+    σ
 )
 
     N = length(B)
     resample!(B)
+    K = MvNormal(σ)
     perturb!(B, K)
 
     θ = Parameters(π, N)

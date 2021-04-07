@@ -31,9 +31,9 @@ function SequentialPosterior_EF(
     π_X = Prior(X)
     B0 = load(:L_NoEF, (:v, :EB, :D); fn=fn)
 
-    B1 = InferenceBatch(π_X, B0)
     σ = vcat([0.1, 0.05, 0.01], 0.05*ones(length(X)))
-    smc(L_EF(), π_X, 2000, B1, N_T=1000, alpha=0.8, Δt_min=1e-2, σ=σ)
+    B1 = InferenceBatch(π_X, B0, σ[1:3])
+    smc(L_EF(), π_X, 5000, B1, N_T=1000, alpha=0.8, Δt_min=1e-2, σ=σ)
 
     save(B1, :L_EF; fn=fn)
     return B1
