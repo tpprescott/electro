@@ -34,7 +34,7 @@ end
 struct L_Joint{Y_NoEF, Y_EF} <: SyntheticLogLikelihood
     data_NoEF::Y_NoEF
     data_EF::Y_EF
-    L_Joint(; data_NoEF::Y_NoEF=yobs_NoEF, data_EF::Y_EF=yobs_EF) where Y_NoEF where Y_EF = new{Y_NoEF, Y_EF}(data_NoEF, data_EF)
+    L_Joint(; data_NoEF::Y_NoEF, data_EF::Y_EF) where Y_NoEF where Y_EF = new{Y_NoEF, Y_EF}(data_NoEF, data_EF)
 end
 
 #=
@@ -78,8 +78,8 @@ function (L::L_200)(θ::ParameterVector; n=500, y=zeros(Float64, 8, n))::Float64
 end
 
 function (L::L_Joint)(θ::ParameterVector; n=500, y=zeros(Float64, 4, n))::Float64
-    NoEF = L_NoEF(data=L.data_NoEF)
-    EF = L_EF(data=L.data_EF)
+    NoEF = L_Ctrl(; data=L.data_NoEF)
+    EF = L_200(; data=L.data_EF)
 
     r = NoEF(θ, y=y)
     r += EF(θ, y=y)

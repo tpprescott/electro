@@ -40,17 +40,17 @@ function SequentialPosterior_EF(
     return B1
 end
 
-function AllSequentialInference(; fn::String="electro_data", kwargs...)
+function AllSequentialInference(; data, fn::String, kwargs...)
     for X in combination_powerset
-        SequentialPosterior_EF(X; fn=fn, kwargs...)
+        SequentialPosterior_EF(X; data=data, fn=fn, kwargs...)
     end
     return nothing
 end
-function AllSequentialPartitions(N::Int; fn::String="electro_data", kwargs...)
+function AllSequentialPartitions(N::Int; data_NoEF, data_EF, fn::String, kwargs...)
     for X in combination_powerset
         Names = get_par_names(X)
         B = load(:L_EF, Names, fn=fn)
-        big_ell = log_partition_function(L_Joint(), X, B, N)
+        big_ell = log_partition_function(L_Joint(data_NoEF=data_NoEF, data_EF=data_EF), X, B, N)
         @info "log_partition_function for $X is $big_ell"
         asave(big_ell, :log_partition_function, :L_EF, Names)
     end
