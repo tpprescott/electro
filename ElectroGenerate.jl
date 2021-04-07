@@ -25,6 +25,7 @@ end
 # Set up the intermediate prior based on the NoEF output and evaluated against EF only
 function SequentialPosterior_EF(
     X;
+    data,
     fn::String,
     kwargs...
 )
@@ -33,7 +34,7 @@ function SequentialPosterior_EF(
 
     σ = vcat([0.1, 0.05, 0.01], 0.05*ones(length(X)))
     B1 = InferenceBatch(π_X, B0, σ[1:3])
-    smc(L_200(), π_X, 5000, B1, N_T=1000, alpha=0.8, Δt_min=1e-2, σ=σ)
+    smc(L_200(; data=data), π_X, 5000, B1, N_T=1000, alpha=0.8, Δt_min=1e-2, σ=σ)
 
     save(B1, :L_EF; fn=fn)
     return B1

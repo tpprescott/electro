@@ -29,7 +29,7 @@ function InferenceBatch(
     perturb!(B, K)
 
     θ = Parameters(π, N)
-    θ.θ[1:4, :] .= B.θ.θ
+    θ.θ[1:3, :] .= B.θ.θ
 
     ell = fill(1/N, N)
     log_sl = zeros(N)
