@@ -48,8 +48,8 @@ export P_Ctrl#, P_NoEF, P_EF
 export Y_Ctrl#, Y_NoEF, Y_EF
 # export xobs_NoEF, xobs_EF
 # export yobs_NoEF, yobs_EF
-export xobs_Ctrl_1, xobs_Ctrl_2
-export yobs_Ctrl_1, yobs_Ctrl_2
+export xobs_Ctrl, xobs_Ctrl_1, xobs_Ctrl_2
+export yobs_Ctrl, yobs_Ctrl_1, yobs_Ctrl_2
 
 const u_NoEF = NoEF()
 const u_EF = ConstantEF(1)

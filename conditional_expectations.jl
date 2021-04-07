@@ -58,7 +58,7 @@ end
 
 ##### For analysis
 
-pbar2(theta) = get_pbar2(theta[2], theta[3])
+pbar2(theta) = 1/3
 
 abstract type EmpiricalSummary end
 function getnames(::Type{T}) where T<:EmpiricalSummary
