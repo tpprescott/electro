@@ -70,7 +70,7 @@ end
     xlims --> D_par_lims[Names[I]]
     ylims --> D_par_lims[Names[J]]
     legend := :none
-    seriestype --> :hist2d
+    seriestype --> :histogram2d
     marker_z --> get(plotattributes, :weights, nothing)
     (selectdim(P.θ, 1, I), selectdim(P.θ, 1, J))
 end
@@ -106,6 +106,7 @@ end
     link --> :none
     layout --> (N, N)
     
+    w = get(plotattributes, :weights, ones(size(P,2)))
     k = 0
     for (k_i, i) in enumerate(I)
         for j in I[1:(k_i-1)]
@@ -125,8 +126,8 @@ end
             @series begin
                 subplot := k
 
-                xx = quantile(selectdim(P, 1, j), [0.005, 0.5, 0.995])
-                yy = quantile(selectdim(P, 1, i), [0.005, 0.5, 0.995])
+                xx = quantile(selectdim(P, 1, j), Weights(w), [0.005, 0.5, 0.995])
+                yy = quantile(selectdim(P, 1, i), Weights(w), [0.005, 0.5, 0.995])
 
                 xlims := (minimum(xx), maximum(xx))
                 ylims := (minimum(yy), maximum(yy))
