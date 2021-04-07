@@ -13,7 +13,6 @@ end
 
 abstract type SyntheticLogLikelihood end
 
-#=
 struct L_NoEF{Y} <: SyntheticLogLikelihood
     data::Y
     L_NoEF(; data::Y=yobs_NoEF) where Y = new{Y}(data)
@@ -22,7 +21,6 @@ struct L_EF{Y} <: SyntheticLogLikelihood
     data::Y
     L_EF(; data::Y=yobs_EF) where Y = new{Y}(data)
 end
-=#
 
 struct L_Ctrl{Y} <: SyntheticLogLikelihood
     data::Y
