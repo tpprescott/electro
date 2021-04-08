@@ -13,10 +13,11 @@ mutable struct InferenceBatch{Names, P<:Parameters{Names,2}}
 end
 function InferenceBatch(N::Int, π::ParameterDistribution)
     θ = Parameters(π, N)
-    ell = fill(1/N, N)
+    ell = fill(-log(N), N)
     log_sl = zeros(N)
     InferenceBatch(θ, ell, log_sl)
 end
+#=
 function InferenceBatch(
     π::ParameterDistribution,
     B::InferenceBatch{par_names_NoEF},
@@ -35,6 +36,7 @@ function InferenceBatch(
     log_sl = zeros(N)
     InferenceBatch(θ, ell, log_sl)
 end
+=#
 
 Base.length(b::InferenceBatch) = length(b.ell)
 function Base.append!(B1::InferenceBatch, B2::InferenceBatch)
@@ -77,56 +79,53 @@ end
 function smc(
     L::SyntheticLogLikelihood, 
     π::ParameterDistribution{Names}, 
-    N::Int,
-    B::InferenceBatch = InferenceBatch(N, π);
-    N_T::Int,
+    N::Int;
+    N_T::Int=N,
+    synthetic_likelihood_n=500,
     σ,
     kwargs...
 ) where Names
     
     temperature = zero(Float64)
     gen = zero(Int64)
-
-#    dim = length(Names)
+    
+    # Step 0
+    B = InferenceBatch(N, π)
+    B.log_sl .= get_log_sl(L, ParameterSet(B.θ), trues(N), synthetic_likelihood_n)
 
     while true
-        K = MvNormal(σ ./ (10^temperature))
+        # Step 1
         gen += one(Int64)
-        Δt, ess = smc_step(B, L, π, temperature; kwargs...)
+        temperature<1 || (return B)
+
+        Δt, ess = find_dt(B, temperature; kwargs...)
         temperature += Δt
         @info "Generation: $(gen). Temperature: $(temperature). ESS: $(ess)."
 
-        if temperature >= 1
-            return B
-        end
-
-        W = Weights(exp.(B.ell))
         ess<N_T && resample!(B)
-        perturb!(B, K)
+        K = MvNormal(σ ./ (10^temperature))
+        perturb!(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
     end
 end
 
-function smc_step(
+function find_dt(
     B::InferenceBatch, 
-    L::SyntheticLogLikelihood, 
-    π::ParameterDistribution,
     temperature;
     alpha=0.9,
-    synthetic_likelihood_n=500,
     Δt_min=1e-5,
 )
 
     0<=temperature<1 || error("Temperature must be between zero and 1")
     # Index so only working with live particles 
-    isalive = insupport(π, B.θ)
+#    isalive = insupport(π, B.θ)
 
     # Update the log synthetic likelihoods of the current parameters
-    B.log_sl .= get_log_sl(L, ParameterSet(B.θ), isalive, synthetic_likelihood_n)
+#    B.log_sl .= get_log_sl(L, ParameterSet(B.θ), isalive, synthetic_likelihood_n)
     
     # Find the change in temperature to reduce ESS by factor of alpha<1
     test_ell = similar(B.ell)
-    ESS_now = _ESS(B.ell)
-    f(Δtemp) = alpha*ESS_now - _ESS(test_ell, B.ell, B.log_sl, Δtemp)
+    ESS_now = _ESS!(B.ell)
+    f(Δtemp) = alpha*ESS_now - _ESS!(test_ell, B.ell, B.log_sl, Δtemp)
     
     Δt_max = 1-temperature
 
@@ -140,7 +139,7 @@ function smc_step(
         fzero(f, Δt_min, Δt_max)
     end
 
-    Δt, _ESS(B.ell, B.ell, B.log_sl, Δt)
+    Δt, _ESS!(B.ell, B.ell, B.log_sl, Δt)
 end
 
 
@@ -155,15 +154,15 @@ function get_log_sl(L::SyntheticLogLikelihood, θ::ParameterSet, isalive, n::Int
 end
 
 # The other functions
-function _ESS(ell)
+function _ESS!(ell)
     ell .-= maximum(ell)
     sum(exp, ell)^2/sum(exp, 2.0 .* ell)
 end
-function _ESS(ell_next, ell, log_sl, Δtemp)
+function _ESS!(ell_next, ell, log_sl, Δtemp)
     @. ell_next = ell + (Δtemp * log_sl)
-    _ESS(ell_next)
+    _ESS!(ell_next)
 end
-ESS(B::InferenceBatch) = _ESS(B.ell)
+ESS(B::InferenceBatch) = _ESS!(B.ell)
 
 function _interpolate_covariance!(cov, cov_1, cov_2, λ)
     @. cov = (1-λ)*cov_1 + λ*cov_2
@@ -180,13 +179,31 @@ function resample!(B::InferenceBatch{Names}) where Names
     θ_new = B.θ[:,I]
     B.θ = Parameters(θ_new, Names)
 
-    B.ell .= 1/N
+    B.ell .= -log(N)
+    B.log_sl .= B.log_sl[I]
     B
 end
 
-function perturb!(B, K::MvNormal)
+function perturb!(B::InferenceBatch{Names}, L, π, temp, K::MvNormal; synthetic_likelihood_n) where Names
     N = length(B)
+
+    # Perturb parameters
     Δθ = rand(K, N)
-    B.θ.θ .+= Δθ
+    θstar = Parameters(B.θ.θ .+ Δθ, Names)
+    
+    # Simulating only with live particles, get the log_sl of the proposed parameters
+    isalive = insupport(π, θstar)
+    θ_set = ParameterSet(B.θ)
+    θstar_set = ParameterSet(θstar)
+    log_sl_star = get_log_sl(L, θstar_set, isalive, synthetic_likelihood_n)
+
+    # Accept perturbations according to an M-H acceptance kernel
+    for i in 1:N
+        log_α = temp*(log_sl_star[i] - B.log_sl[i]) + logpdf(π, θstar_set[i]) - logpdf(π, θ_set[i])
+        if log(rand()) < log_α
+            θ_set[i] = θstar_set[i]
+            B.log_sl[i] = log_sl_star[i]
+        end
+    end
     B
 end
