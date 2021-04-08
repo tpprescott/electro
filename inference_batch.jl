@@ -86,6 +86,7 @@ function smc(
     kwargs...
 ) where Names
     
+    K = MvNormal(σ)
     temperature = zero(Float64)
     gen = zero(Int64)
     
@@ -103,7 +104,6 @@ function smc(
         @info "Generation: $(gen). Temperature: $(temperature). ESS: $(ess)."
 
         ess<N_T && resample!(B)
-        K = MvNormal(σ ./ (10^temperature))
         perturb!(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
     end
 end
