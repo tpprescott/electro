@@ -112,7 +112,7 @@ function smc(
         @info "Generation: $(gen). Temperature: $(temperature). ESS: $(ess)."
 
         if ess<N_T
-            B = resample(B)
+            B = resample(B, synthetic_likelihood_n=synthetic_likelihood_n)
             σ ./= resample_factor
         else
             σ .*= expand_factor
