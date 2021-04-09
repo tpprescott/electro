@@ -112,7 +112,11 @@ function smc(
         @info "Generation: $(gen). Temperature: $(temperature). ESS: $(ess)."
 
         if ess<N_T
-            B = resample(B, synthetic_likelihood_n=synthetic_likelihood_n)
+            B = resample(B)
+            # Step to make sure the log_sl values are sensible
+            B.log_sl .= @showprogress pmap(B) do p
+                L(p.θ, n=synthetic_likelihood_n*p.copies)
+            end        
             σ ./= resample_factor
         else
             σ .*= expand_factor
@@ -185,7 +189,7 @@ function checkvalid(p::Particle)
     return true
 end
 
-function resample(B::InferenceBatch; synthetic_likelihood_n)
+function resample(B::InferenceBatch)
     n = length(B)
     N = sum(B.copies)
         
@@ -196,9 +200,6 @@ function resample(B::InferenceBatch; synthetic_likelihood_n)
     B.ell .= 0.0
     for i in I
         B.copies[i] += 1
-    end
-    B.log_sl .= @showprogress pmap(B) do p
-        L(p.θ, n=synthetic_likelihood_n*p.copies)
     end
     return filter(checkvalid, B)
 end
