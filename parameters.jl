@@ -41,6 +41,7 @@ Base.promote_rule(::Type{ParameterSet{Names, T, M}}, ::Type{Parameters{Names, 2,
 abstract type ParameterDistribution{Names} <: ContinuousMultivariateDistribution end
 Base.length(::ParameterDistribution{Names}) where Names = length(Names)
 Parameters(π::ParameterDistribution{Names}, n...) where Names = Parameters(rand(π, n...), Names)
+ParameterSet(π::ParameterDistribution{Names}, n...) where Names = ParameterSet(rand(π, n...), Names)
 
 struct Prior{Names} <: ParameterDistribution{Names}
     π::ContinuousMultivariateDistribution
