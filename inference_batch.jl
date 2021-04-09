@@ -111,9 +111,11 @@ function smc(
 
         if ess<N_T
             B = resample(B)
-            K = MvNormal(σ./10^temperature)
+            σ ./= 2.0
+        else
+            σ .*= 1.1
         end
-        B = perturb(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
+        B = perturb(B, L, π, temperature, MvNormal(σ); synthetic_likelihood_n=synthetic_likelihood_n)
     end
 end
 
