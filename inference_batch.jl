@@ -90,6 +90,8 @@ function smc(
     N_T::Int=N,
     synthetic_likelihood_n=500,
     σ,
+    resample_factor = 2.0,
+    expand_factor = 1.2,
     kwargs...
 ) where Names
     
@@ -111,9 +113,9 @@ function smc(
 
         if ess<N_T
             B = resample(B)
-            σ ./= 2.0
+            σ ./= resample_factor
         else
-            σ .*= 1.1
+            σ .*= expand_factor
         end
         B = perturb(B, L, π, temperature, MvNormal(σ); synthetic_likelihood_n=synthetic_likelihood_n)
     end
