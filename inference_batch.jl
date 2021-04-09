@@ -93,9 +93,9 @@ function smc(
     kwargs...
 ) where Names
     
-    K = MvNormal(σ)
     temperature = zero(Float64)
     gen = zero(Int64)
+    K = MvNormal(σ)
     
     # Step 0
     B = initInferenceBatch(N, π, L; n=synthetic_likelihood_n)
@@ -109,7 +109,10 @@ function smc(
         temperature += Δt
         @info "Generation: $(gen). Temperature: $(temperature). ESS: $(ess)."
 
-        B = ess<N_T ? resample(B) : B
+        if ess<N_T
+            B = resample(B)
+            K = MvNormal(σ./10^temperature)
+        end
         B = perturb(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
     end
 end
@@ -126,7 +129,7 @@ function find_dt(
     # Find the change in temperature to reduce ESS by factor of alpha<1
     f(Δtemp) = alpha*ESS(B) - tryESS(B, Δtemp)
     
-    Δt_max = min(0.1, 1-temperature)
+    Δt_max = min(0.05, 1-temperature)
 
     Δt = if Δt_max <= Δt_min
         Δt_max

@@ -1,7 +1,7 @@
 export save, load, asave, aload
 
 # SAVING
-function save(b::InferenceBatch{Names}, LT::Symbol; fn::String="electro_data") where Names
+function save(b::InferenceBatch{P}, LT::Symbol; fn::String="electro_data") where P<:Parameters{Names,1} where Names
     eval(LT) <: SyntheticLogLikelihood || error("Wrong symbol, mush --- $(eval(LT)) is not subtype of SyntheticLogLikelihood")
     
     fid = h5open(fn*".h5", "cw")
@@ -23,9 +23,12 @@ function save(b::InferenceBatch{Names}, LT::Symbol; fn::String="electro_data") w
         attributes(g2)["Names"] = [String(nm) for nm in Names]
     end
 
-    write(g2, "θ", b.θ.θ)
+    parvec(p::Particle) = p.θ.θ
+    θmat = hcat(parvec.(b)...)
+    write(g2, "θ", θmat)
     write(g2, "log_sl", b.log_sl)
     write(g2, "ell", b.ell)
+    write(g2, "copies", b.copies)
     
     close(fid)
 end
