@@ -185,7 +185,7 @@ function checkvalid(p::Particle)
     return true
 end
 
-function resample(B::InferenceBatch)
+function resample(B::InferenceBatch; synthetic_likelihood_n)
     n = length(B)
     N = sum(B.copies)
         
@@ -196,6 +196,9 @@ function resample(B::InferenceBatch)
     B.ell .= 0.0
     for i in I
         B.copies[i] += 1
+    end
+    B.log_sl .= @showprogress pmap(B) do p
+        L(p.θ, n=synthetic_likelihood_n*p.copies)
     end
     return filter(checkvalid, B)
 end
