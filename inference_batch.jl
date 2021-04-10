@@ -90,8 +90,8 @@ function smc(
     N_T::Int=N,
     synthetic_likelihood_n=500,
     σ,
-    resample_factor = 2.0,
-    expand_factor = 1.2,
+    resample_factor = 1.0,
+    expand_factor = 1.0,
     kwargs...
 ) where Names
     
@@ -129,6 +129,7 @@ function find_dt(
     B::InferenceBatch, 
     temperature;
     alpha=0.8,
+    Δt_max=1.0,
     Δt_min=1e-6,
 )
 
@@ -137,7 +138,7 @@ function find_dt(
     # Find the change in temperature to reduce ESS by factor of alpha<1
     f(Δtemp) = alpha*ESS(B) - tryESS(B, Δtemp)
     
-    Δt_max = min(0.05, 1-temperature)
+    Δt_max = min(Δt_max, 1-temperature)
 
     Δt = if Δt_max <= Δt_min
         Δt_max
