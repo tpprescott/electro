@@ -115,7 +115,7 @@ function smc(
             σ ./= resample_factor
             # Step to recalculate log_sl values
             B.log_sl .= @showprogress pmap(B) do p
-                L(p.θ, n=copies*synthetic_likelihood_n)
+                L(p.θ, n=p.copies*synthetic_likelihood_n)
             end        
         else
             σ .*= expand_factor
