@@ -97,7 +97,6 @@ function smc(
     
     temperature = zero(Float64)
     gen = zero(Int64)
-    K = MvNormal(σ)
     
     # Step 0
     B = initInferenceBatch(N, π, L; n=synthetic_likelihood_n)
@@ -114,10 +113,9 @@ function smc(
         if ess<N_T
             B = resample(B)
             σ ./= resample_factor
-            synthetic_likelihood_n *= 2
             # Step to recalculate log_sl values
             B.log_sl .= @showprogress pmap(B) do p
-                L(p.θ, n=synthetic_likelihood_n)
+                L(p.θ, n=copies*synthetic_likelihood_n)
             end        
         else
             σ .*= expand_factor
@@ -211,12 +209,19 @@ function perturb(B::InferenceBatch, L, π::ParameterDistribution{Names}, temp, K
     N = sum(B.copies)
 
     # Set of perturbed parameter values
-    θstar_mat = rand(K, N)
+    d = length(Names)
+    θstar_mat = zeros(d, N)
     cidx=0
     for i in 1:n
+        θi = B.θ[i].θ
+        θstar = similar(θi)
         for j in 1:B.copies[i]
             cidx+=1
-            θstar_mat[:, cidx] .+= B.θ[i].θ
+            while true
+                θstar .= θi .+ rand(K)
+                insupport(π, Parameters(θstar, Names)) && break
+            end
+            θstar_mat[:,cidx] .= θstar
         end
     end
     θstar = ParameterSet(θstar_mat, Names)
