@@ -8,8 +8,8 @@ using Combinatorics
 
 # Start with NoEF
 function Posterior_NoEF(; data, fn::String)
-    B = smc(L_Ctrl(; data=data), Prior(), 5000, N_T=1000, alpha=0.8, Δt_min=1e-3, σ=[0.1, 0.05, 0.01])
-    save(B, :L_NoEF; fn=fn)
+    B = smc(L_Ctrl(; data=data), Prior(), 5000, N_T=1000, alpha=0.6, Δt_min=1e-3, σ=[0.1, 0.05, 0.01])
+    save(B, :L_Ctrl; fn=fn)
     return B
 end
 

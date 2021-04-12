@@ -113,11 +113,12 @@ function smc(
 
         if ess<N_T
             B = resample(B)
-            # Step to make sure the log_sl values are sensible
-            B.log_sl .= @showprogress pmap(B) do p
-                L(p.θ, n=synthetic_likelihood_n*p.copies)
-            end        
             σ ./= resample_factor
+            synthetic_likelihood_n *= 2
+            # Step to recalculate log_sl values
+            B.log_sl .= @showprogress pmap(B) do p
+                L(p.θ, n=synthetic_likelihood_n)
+            end        
         else
             σ .*= expand_factor
         end
