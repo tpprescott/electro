@@ -13,6 +13,8 @@ struct Particle{P<:Parameters}
     ell::Float64
 end
 InferenceBatch{P} = StructArray{Particle{P}}
+ell(p::Particle, t=1.0) = p.log_importance + t*p.log_sl
+ell(B::InferenceBatch, t=1.0) = ell.(B, Ref(t))
 ## Note that StructArrays make particles mutable!
 
 function initInferenceBatch(N::Int, π::ParameterDistribution, L::SyntheticLogLikelihood; n::Int64=500)
@@ -22,62 +24,6 @@ function initInferenceBatch(N::Int, π::ParameterDistribution, L::SyntheticLogLi
     return StructArray(Particle.(θ, log_sl, Ref(0.0)))
 end
 
-#=
-function InferenceBatch(
-    π::ParameterDistribution,
-    B::InferenceBatch{par_names_NoEF},
-    σ
-)
-
-    N = length(B)
-    resample!(B)
-    K = MvNormal(σ)
-    perturb!(B, K)
-
-    θ = Parameters(π, N)
-    θ.θ[1:3, :] .= B.θ.θ
-
-    ell = fill(1/N, N)
-    log_sl = zeros(N)
-    InferenceBatch(θ, ell, log_sl)
-end
-=#
-
-#=
-function Base.append!(B1::InferenceBatch, B2::InferenceBatch)
-    B1.θ = hcat(B1.θ, B2.θ)
-    append!(B1.ell, B2.ell)
-    B1
-end
-function Base.getindex(b::InferenceBatch{Names}, I) where Names
-    Parameters(selectdim(b.θ.θ, 2, I), Names)
-end
-function Distributions.mean(b::InferenceBatch{Names}) where Names
-    b.ell .-= maximum(b.ell)
-    w = Weights(exp.(b.ell))
-    θbar = vec(mean(b.θ, w, dims=2))
-    return Parameters(θbar, Names)
-end
-
-function Importance(b::InferenceBatch{Names}) where Names
-    b.ell .-= maximum(b.ell)
-    idx = isfinite.(b.ell)
-    
-    w = Weights(exp.(b.ell[idx]))
-    Importance(Parameters(b.θ[:,idx], Names), w)
-end
-function Sequential(b::InferenceBatch{Names}, I...) where Names
-    b.ell .-= maximum(b.ell)
-    idx = isfinite.(b.ell)
-
-    w = Weights(exp.(b.ell[idx]))
-    Sequential(Parameters(b.θ[:,idx], Names), I...)
-end
-function ConditionalExpectation(B::InferenceBatch, Φ::EmpiricalSummary; n=500)
-    idx = isfinite.(B.ell)
-    return ConditionalExpectation(ParameterSet(B[idx]), B.ell[idx], Φ; n=n)
-end
-=#
 
 ##################
 # SMC: Step and wrapper
@@ -99,16 +45,16 @@ function smc(
     gen = zero(Int64)
     
     # Step 0
-    B = initInferenceBatch(N, π, L; n=synthetic_likelihood_n)
+    B = initInferenceBatch(N, π, L; n=n)
 
     while true
         # Step 1
         gen += one(Int64)
-        temperature<1 || (return B)
 
         Δt, ess = find_dt(B, temperature; kwargs...)
         temperature += Δt
         @info "Generation: $(gen). Temperature: $(temperature). ESS: $(ess)."
+        temperature<1 || (return B)
 
         if ess<N_T
             resample!(B)
@@ -125,7 +71,7 @@ end
 function find_dt(
     B::InferenceBatch, 
     temperature;
-    alpha=0.8,
+    alpha=0.6,
     Δt_max=1.0,
     Δt_min=1e-6,
     kwargs...
@@ -134,7 +80,7 @@ function find_dt(
     0<=temperature<1 || error("Temperature must be between zero and 1") 
     
     # Find the change in temperature to reduce ESS by factor of alpha<1
-    f(Δtemp) = alpha*ESS(B) - tryESS(B, Δtemp)
+    f(Δt) = alpha*ESS(B, temperature) - ESS(B, temperature+Δt)
     
     Δt_max = min(Δt_max, 1-temperature)
 
@@ -148,9 +94,32 @@ function find_dt(
         fzero(f, Δt_min, Δt_max)
     end
 
-    B.ell .+= Δt.*B.log_sl
-    B.ell .-= maximum(B.ell)
-    Δt, ESS(B)
+    Δt, ESS(B, temperature+Δt)
+end
+
+function perturb!(B::InferenceBatch, L, π::ParameterDistribution{Names}, temp, σ; n) where Names
+    
+    # Build the importance distribution
+    ℓ = ell(B, temp)
+    w = exp.(ℓ .- maximum(ℓ))
+    w ./= sum(w)
+    q = MixtureModel(map(p -> MvNormal(p.θ.θ, σ), B), w)
+
+    # Sample from the importance distribution
+    N = length(B)
+    θstar = rand(q, N)
+    for j in 1:N
+        θstar_j = selectdim(θstar, 2, j)
+        while !insupport(π.π, θstar_j)
+            θstar_j .= rand(q)
+        end
+        B.θ[j].θ .= θstar_j
+        B.log_importance[j] = logpdf(π.π, θstar_j) - logpdf(q, θstar_j)
+    end
+        
+    # Simulating only with live particles, get the log_sl of the proposed parameters
+    B.log_sl .= get_log_sl(L, B.θ, trues(N), n)
+    return nothing
 end
 
 
@@ -186,6 +155,7 @@ function checkvalid(p::Particle)
     end
     return true
 end
+ESS(B::InferenceBatch, t=1.0) = ESS(ell(B, t))
 
 function resample!(B::InferenceBatch)
     N = length(B)
