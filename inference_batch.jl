@@ -86,9 +86,9 @@ function smc(
     L::SyntheticLogLikelihood, 
     π::ParameterDistribution{Names}, 
     N::Int;
+    σ,
     N_T::Int=N,
     synthetic_likelihood_n=500,
-    σ,
     resample_factor = 1.0,
     expand_factor = 1.0,
     nBreathe = 1,
@@ -128,6 +128,7 @@ function find_dt(
     alpha=0.8,
     Δt_max=1.0,
     Δt_min=1e-6,
+    kwargs...
 )
 
     0<=temperature<1 || error("Temperature must be between zero and 1") 
