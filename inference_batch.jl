@@ -115,8 +115,11 @@ function smc(
         else
             σ .*= expand_factor
         end
-        while !allunique(B.θ)
-            perturb!(B, L, π, temperature, MvNormal(σ); synthetic_likelihood_n=synthetic_likelihood_n)
+        K = MvNormal(σ)
+        n = perturb!(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
+        while n<N
+            @info "$n unique parameter values: perturbing again"
+            n = perturb!(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
         end
     end
 end
@@ -224,5 +227,5 @@ function perturb!(B::InferenceBatch, L, π::ParameterDistribution{Names}, temp, 
             B[i] = θstar[i]
         end
     end
-    return log_α
+    return length(unique(B.θ))
 end
