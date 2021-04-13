@@ -89,7 +89,6 @@ function smc(
     σ,
     N_T::Int=N,
     synthetic_likelihood_n=500,
-    proposal_decay=0.95,
     kwargs...
 ) where Names
     
@@ -98,6 +97,7 @@ function smc(
     
     # Step 0
     B = initInferenceBatch(N, π, L; n=synthetic_likelihood_n)
+    K = MvNormal(σ)
 
     while true
         # Step 1
@@ -110,12 +110,12 @@ function smc(
 
         if ess<N_T
             resample!(B)
+            K = MvNormal(cov(B.θ))
         end
-        n = perturb!(B, L, π, temperature, MvNormal(σ); synthetic_likelihood_n=synthetic_likelihood_n)
+        n = perturb!(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
         while n<N
             @info "$n unique parameter values: perturbing again"
-            σ .*= proposal_decay
-            n = perturb!(B, L, π, temperature, MvNormal(σ); synthetic_likelihood_n=synthetic_likelihood_n)
+            n = perturb!(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
         end
     end
 end

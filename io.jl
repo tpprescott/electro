@@ -28,7 +28,6 @@ function save(b::InferenceBatch{P}, LT::Symbol; fn::String="electro_data") where
     write(g2, "θ", θmat)
     write(g2, "log_sl", b.log_sl)
     write(g2, "ell", b.ell)
-    write(g2, "copies", b.copies)
     
     close(fid)
 end
