@@ -91,7 +91,6 @@ function smc(
     σ,
     resample_factor = 1.0,
     expand_factor = 1.0,
-    nBreathe = 1,
     kwargs...
 ) where Names
     
