@@ -113,10 +113,7 @@ function smc(
             K = MvNormal(cov(B.θ))
         end
         n = perturb!(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
-        while n<N
-            @info "$n unique parameter values: perturbing again"
-            n = perturb!(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
-        end
+        @info "$n unique parameter values only"
     end
 end
 
