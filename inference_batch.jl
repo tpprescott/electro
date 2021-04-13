@@ -11,7 +11,6 @@ struct Particle{P<:Parameters}
     θ::P
     log_sl::Float64
     ell::Float64
-    copies::Int64
 end
 InferenceBatch{P} = StructArray{Particle{P}}
 ## Note that StructArrays make particles mutable!
@@ -20,7 +19,7 @@ function initInferenceBatch(N::Int, π::ParameterDistribution, L::SyntheticLogLi
     θ = ParameterSet(π, N)
     f(t) = L(t, n=n)
     log_sl = @showprogress pmap(f, θ)
-    return StructArray(Particle.(θ, log_sl, Ref(0.0), Ref(1)))
+    return StructArray(Particle.(θ, log_sl, Ref(0.0)))
 end
 
 #=
@@ -92,6 +91,7 @@ function smc(
     σ,
     resample_factor = 1.0,
     expand_factor = 1.0,
+    nBreathe = 1,
     kwargs...
 ) where Names
     
@@ -111,16 +111,14 @@ function smc(
         @info "Generation: $(gen). Temperature: $(temperature). ESS: $(ess)."
 
         if ess<N_T
-            B = resample(B)
+            resample!(B)
             σ ./= resample_factor
-            # Step to recalculate log_sl values
-            B.log_sl .= @showprogress pmap(B) do p
-                L(p.θ, n=p.copies*synthetic_likelihood_n)
-            end        
         else
             σ .*= expand_factor
         end
-        B = perturb(B, L, π, temperature, MvNormal(σ); synthetic_likelihood_n=synthetic_likelihood_n)
+        while !allunique(B.θ)
+            perturb!(B, L, π, temperature, MvNormal(σ); synthetic_likelihood_n=synthetic_likelihood_n)
+        end
     end
 end
 
@@ -160,21 +158,20 @@ end
 ##################
 
 # The expensive helper function
-function get_log_sl(L::SyntheticLogLikelihood, θ::ParameterSet, isalive, n::Int)
+function get_log_sl(L::SyntheticLogLikelihood, θ, isalive, n::Int)
     f(a,θ_i) = a ? L(θ_i, n=n) : -Inf
     log_sl = @showprogress pmap(f, isalive, θ)
 end
 
 # The other functions
-function ESS(scaled_ell::Vector{Float64}) 
-    scaled_ell .-= maximum(scaled_ell)
-    sum(exp, scaled_ell)^2/sum(exp, scaled_ell.*2)
+function ESS(ell::Vector{Float64}) 
+    ell_max = maximum(ell)
+    sum(exp, (ell.-ell_max))^2/sum(exp, (ell.-ell_max).*2)
 end
+ESS(B::InferenceBatch) = ESS(B.ell)
 
-ESS(B::InferenceBatch) = ESS(B.ell, B.copies)
-ESS(ell::Vector{Float64}, copies::Vector{Int64}) = ESS(ell .+ log.(copies))
-tryESS(B::InferenceBatch, Δtemp) = tryESS(B.ell, B.copies, B.log_sl, Δtemp)
-tryESS(ell::Vector{Float64}, copies::Vector{Int64}, log_sl::Vector{Float64}, Δtemp) = ESS(ell .+ log.(copies) .+ (Δtemp.*log_sl))
+tryESS(B::InferenceBatch, Δtemp) = tryESS(B.ell, B.log_sl, Δtemp)
+tryESS(ell::Vector{Float64}, log_sl::Vector{Float64}, Δtemp) = ESS(ell .+ (Δtemp.*log_sl))
 
 function _interpolate_covariance!(cov, cov_1, cov_2, λ)
     @. cov = (1-λ)*cov_1 + λ*cov_2
@@ -189,62 +186,44 @@ function checkvalid(p::Particle)
     return true
 end
 
-function resample(B::InferenceBatch)
-    n = length(B)
-    N = sum(B.copies)
+function resample!(B::InferenceBatch)
+    N = length(B)
         
-    W = Weights(B.copies .* exp.(B.ell))
-    I = sample(1:n, W, N)
+    W = Weights(exp.(B.ell))
+    I = sample(1:N, W, N)
     
-    B.copies .= 0
+    B.θ .= B.θ[I]
+    B.log_sl .= B.log_sl[I]
     B.ell .= 0.0
-    for i in I
-        B.copies[i] += 1
-    end
-    return filter(checkvalid, B)
+    return nothing
 end
 
-function perturb(B::InferenceBatch, L, π::ParameterDistribution{Names}, temp, K::MvNormal; synthetic_likelihood_n) where Names
-    n = length(B)
-    N = sum(B.copies)
+function _get_θstar(p::Particle, L, π::ParameterDistribution{Names}, K::MvNormal; synthetic_likelihood_n) where Names
+    θstar = Parameters(p.θ.θ + rand(K), Names)
+    log_sl_star = insupport(π, θstar) ? L(θstar, n=synthetic_likelihood_n) : -Inf
+    return Particle(θstar, log_sl_star, p.ell)
+end
 
-    # Set of perturbed parameter values
-    d = length(Names)
-    θstar_mat = zeros(d, N)
-    cidx=0
-    for i in 1:n
-        θi = B.θ[i].θ
-        θstar = similar(θi)
-        for j in 1:B.copies[i]
-            cidx+=1
-            while true
-                θstar .= θi .+ rand(K)
-                insupport(π, Parameters(θstar, Names)) && break
-            end
-            θstar_mat[:,cidx] .= θstar
+function perturb!(B::InferenceBatch, L, π::ParameterDistribution{Names}, temp, K::MvNormal; synthetic_likelihood_n) where Names
+    N = length(B)
+
+    # Two steps to perturbation: first, resample simulations for new log likelihood for each particle
+    # "Accept" this perturbation w.p. = 1
+    isalive = [insupport(π, p.θ) for p in B]
+    B.log_sl .= get_log_sl(L, B.θ, isalive, synthetic_likelihood_n)
+
+    # Second, produce set of perturbed parameter values
+    f(p::Particle) = _get_θstar(p, L, π, K, synthetic_likelihood_n=synthetic_likelihood_n)
+    θstar_list = @showprogress pmap(f, B)
+    θstar = StructArray(θstar_list)
+
+    # Accept second perturbation according to an M-H acceptance kernel
+    log_α = zeros(N)
+    for i in 1:N
+        log_α[i] = temp*(θstar.log_sl[i] - B.log_sl[i]) + logpdf(π, θstar.θ[i]) - logpdf(π, B.θ[i])
+        if log(rand()) < log_α[i]
+            B[i] = θstar[i]
         end
     end
-    θstar = ParameterSet(θstar_mat, Names)
-    
-    # Simulating only with live particles, get the log_sl of the proposed parameters
-    isalive = insupport.(Ref(π), θstar)
-    log_sl_star = get_log_sl(L, θstar, isalive, synthetic_likelihood_n)
-
-    # NOTE - TWO LOOPS TO ALLOW PARALLELISATION IN THE MIDDLE
-
-    # Accept perturbations according to an M-H acceptance kernel
-    cidx=0
-    for i in 1:n
-        J = B.copies[i]
-        for j in 1:J
-            cidx+=1
-            log_α = temp*(log_sl_star[cidx] - B.log_sl[i]) + logpdf(π, θstar[cidx]) - logpdf(π, B.θ[i])
-            if log(rand()) < log_α
-                B.copies[i] -= 1
-                p = Particle(θstar[cidx], log_sl_star[cidx], B.ell[i], 1)
-                push!(B, p)
-            end
-        end
-    end
-    return filter(checkvalid, B)
+    return log_α
 end
