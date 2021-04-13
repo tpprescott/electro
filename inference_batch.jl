@@ -62,8 +62,9 @@ function smc(
         else
             σ .*= expand_factor
         end
+        K = MvNormal(σ)
         while !allunique(B.θ)
-            perturb!(B, L, π, temperature, MvNormal(σ); synthetic_likelihood_n=synthetic_likelihood_n)
+            perturb!(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
         end
     end
 end
@@ -95,31 +96,6 @@ function find_dt(
     end
 
     Δt, ESS(B, temperature+Δt)
-end
-
-function perturb!(B::InferenceBatch, L, π::ParameterDistribution{Names}, temp, σ; n) where Names
-    
-    # Build the importance distribution
-    ℓ = ell(B, temp)
-    w = exp.(ℓ .- maximum(ℓ))
-    w ./= sum(w)
-    q = MixtureModel(map(p -> MvNormal(p.θ.θ, σ), B), w)
-
-    # Sample from the importance distribution
-    N = length(B)
-    θstar = rand(q, N)
-    for j in 1:N
-        θstar_j = selectdim(θstar, 2, j)
-        while !insupport(π.π, θstar_j)
-            θstar_j .= rand(q)
-        end
-        B.θ[j].θ .= θstar_j
-        B.log_importance[j] = logpdf(π.π, θstar_j) - logpdf(q, θstar_j)
-    end
-        
-    # Simulating only with live particles, get the log_sl of the proposed parameters
-    B.log_sl .= get_log_sl(L, B.θ, trues(N), n)
-    return nothing
 end
 
 
