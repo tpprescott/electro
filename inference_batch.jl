@@ -45,7 +45,7 @@ function smc(
     gen = zero(Int64)
     
     # Step 0
-    B = initInferenceBatch(N, π, L; n=n)
+    B = initInferenceBatch(N, π, L; n=synthetic_likelihood_n)
 
     while true
         # Step 1
