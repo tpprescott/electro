@@ -112,8 +112,25 @@ function smc(
             resample!(B)
             K = MvNormal(cov(B.θ))
         end
-        n = perturb!(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
+        n, ar = perturb!(B, L, π, temperature, K; synthetic_likelihood_n=synthetic_likelihood_n)
         @info "$n unique parameter values only"
+    end
+end
+
+function mcmc!(
+    B::InferenceBatch,
+    numSteps::Int64,
+    L::SyntheticLogLikelihood,
+    π::ParameterDistribution,
+    n::Int64=500
+)
+    resample!(B)
+    Σ = cov(B.θ)
+    K = MvNormal(Σ)
+
+    for k = 1:numSteps
+        n, ar = perturb!(B, L, π, 1.0, K, synthetic_likelihood_n=n)
+        @info "Acceptance rate of proposed parameters: $ar"
     end
 end
 
@@ -214,11 +231,13 @@ function perturb!(B::InferenceBatch, L, π::ParameterDistribution{Names}, temp, 
 
     # Accept second perturbation according to an M-H acceptance kernel
     log_α = zeros(N)
+    x = 0
     for i in 1:N
         log_α[i] = temp*(θstar.log_sl[i] - B.log_sl[i]) + logpdf(π, θstar.θ[i]) - logpdf(π, B.θ[i])
         if log(rand()) < log_α[i]
+            x += 1
             B[i] = θstar[i]
         end
     end
-    return length(unique(B.θ))
+    return length(unique(B.θ)), x/N
 end
