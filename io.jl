@@ -82,10 +82,10 @@ end
 function InferenceBatch(G::HDF5.Group)
     str_names = read(attributes(G), "Names")
     Names = Tuple(map(Symbol, str_names))
-    P = Parameters(read(G, "θ"), Names)
-    ell = read(G, "ell")
+    P = ParameterSet(read(G, "θ"), Names)
     log_sl = read(G, "log_sl")
-    return InferenceBatch(P, ell, log_sl)
+    ell = read(G, "ell")
+    return StructArray(Particle.(P, log_sl, ell))
 end
 
 function load(LT::Symbol, Names::NTuple{N, Symbol}; fn::String="electro_data") where N
