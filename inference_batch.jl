@@ -129,7 +129,7 @@ function mcmc!(
     K = MvNormal(Σ)
 
     for k = 1:numSteps
-        n, ar = perturb!(B, L, π, 1.0, K, synthetic_likelihood_n=n)
+        _, ar = perturb!(B, L, π, 1.0, K, synthetic_likelihood_n=n)
         @info "Acceptance rate of proposed parameters: $ar"
     end
 end
