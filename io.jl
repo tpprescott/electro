@@ -15,8 +15,8 @@ function save(b::InferenceBatch{P}, LT::Symbol; fn::String="electro_data") where
     if overwrite_flag
         @info "Overwriting $Names data for $LT"
         g2 = g1[g2_name]
-        for dset in g2
-            delete_object(dset)
+        for k in keys(g2)
+            delete_object(g2, k)
         end
     else
         g2 = create_group(g1, g2_name)
@@ -43,8 +43,8 @@ function save(c::ConditionalExpectation, ES::Symbol; fn::String="electro_data")
     if overwrite_flag
         @info "Overwriting $ES conditional expectations"
         g = fid[g_name]
-        for dset in g
-            delete_object(dset)
+        for k in keys(g)
+            delete_object(g, k)
         end
     else
         g = create_group(fid, g_name)
