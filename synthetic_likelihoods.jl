@@ -6,10 +6,6 @@ function empirical_fit(Z::TrajectoryRandomVariable, n::Int)
     y = rand(Z, n)
     D = Distributions.fit(MvNormal, y)
 end
-function empirical_fit(y, Z::TrajectoryRandomVariable)
-    Distributions.rand!(Z, y)
-    D = Distributions.fit(MvNormal, y)
-end
 
 abstract type SyntheticLogLikelihood end
 
@@ -58,29 +54,29 @@ function (L::L_EF)(θ::ParameterVector; n=500, y=zeros(Float64, 4, n))::Float64
 end
 =#
 
-function (L::L_Ctrl)(θ::ParameterVector; n=500, y=zeros(Float64, 4, n))::Float64
+function (L::L_Ctrl)(θ::ParameterVector; n=500)::Float64
     Y = Y_Ctrl(θ)
     try
-        D = empirical_fit(y,Y)
+        D = empirical_fit(Y,n)
         return sum(logpdf(D, L.data))
     catch
         return -Inf
     end
 end
-function (L::L_200)(θ::ParameterVector; n=500, y=zeros(Float64, 8, n))::Float64
+function (L::L_200)(θ::ParameterVector; n=500)::Float64
     Y = Y_200(θ)
     try
-        D = empirical_fit(y, Y)
+        D = empirical_fit(Y,n)
         return sum(logpdf(D, L.data))
     catch
         return -Inf
     end
 end
 
-function (L::L_Joint)(θ::ParameterVector; n=500, y=zeros(Float64, 4, n))::Float64
-    NoEF = L_Ctrl(; data=L.data_NoEF)
-    EF = L_200(; data=L.data_EF)
+function (L::L_Joint)(θ::ParameterVector; n=500)::Float64
+    NoEF = L_Ctrl(data=L.data_NoEF)
+    EF = L_200(data=L.data_EF)
 
-    r = NoEF(θ, y=y)
-    r += EF(θ, y=y)
+    r = NoEF(θ; n=n)
+    r += EF(θ; n=n)
 end
