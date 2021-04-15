@@ -86,6 +86,19 @@ function smc(
     L::SyntheticLogLikelihood, 
     π::ParameterDistribution{Names}, 
     N::Int;
+    synthetic_likelihood_n=500,
+    kwargs...
+) where Names
+    # Step 0
+    B = initInferenceBatch(N, π, L; n=synthetic_likelihood_n)
+    smc(L, π, N, B; synthetic_likelihood_n=synthetic_likelihood_n, kwargs...)
+end
+
+function smc(
+    L::SyntheticLogLikelihood, 
+    π::ParameterDistribution{Names}, 
+    N::Int,
+    B::InferenceBatch;
     σ,
     N_T::Int=N,
     synthetic_likelihood_n=500,
@@ -95,8 +108,6 @@ function smc(
     temperature = zero(Float64)
     gen = zero(Int64)
     
-    # Step 0
-    B = initInferenceBatch(N, π, L; n=synthetic_likelihood_n)
     K = MvNormal(σ)
 
     while true
