@@ -92,14 +92,14 @@ const yobs_200 = hcat(yobs_200_1, yobs_200_2)
 # For analysis purposes
 # ConditionalExpectation(b_NoEF, S_NoEF(), n=500)
 export P_switch, P_stop
-export P_NoEF_0, P_NoEF_1, P_Switched
+export P_Ctrl_0, P_Ctrl_1, P_Switched
 
 P_switch(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), u_switch)
 P_stop(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), u_stop)
 
 const long_tspan = (0.0, 1800.0)
-P_NoEF_0(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(0), NoEF(), tspan=long_tspan)
-P_NoEF_1(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(1), NoEF(), tspan=long_tspan)
+P_Ctrl_0(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(0), NoEF(), tspan=long_tspan)
+P_Ctrl_1(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(1), NoEF(), tspan=long_tspan)
 P_Switched(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(1), ConstantEF(-1), tspan=long_tspan)
 
 

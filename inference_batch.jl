@@ -5,6 +5,7 @@ export loglikelihood
 export get_log_sl, ESS
 export resample!, perturb!
 export smc_step, smc
+export mcmc!
 
 using StructArrays
 struct Particle{P<:Parameters}
@@ -14,6 +15,11 @@ struct Particle{P<:Parameters}
 end
 InferenceBatch{P} = StructArray{Particle{P}}
 ## Note that StructArrays make particles mutable!
+
+function ConditionalExpectation(B::InferenceBatch, Φ::EmpiricalSummary; n=500)
+    idx = isfinite.(B.ell)
+    return ConditionalExpectation(B.θ[idx], B.ell[idx], Φ; n=n)
+end
 
 function initInferenceBatch(N::Int, π::ParameterDistribution, L::SyntheticLogLikelihood; n::Int64=500)
     θ = ParameterSet(π, N)
@@ -73,11 +79,8 @@ function Sequential(b::InferenceBatch{Names}, I...) where Names
     w = Weights(exp.(b.ell[idx]))
     Sequential(Parameters(b.θ[:,idx], Names), I...)
 end
-function ConditionalExpectation(B::InferenceBatch, Φ::EmpiricalSummary; n=500)
-    idx = isfinite.(B.ell)
-    return ConditionalExpectation(ParameterSet(B[idx]), B.ell[idx], Φ; n=n)
-end
 =#
+
 
 ##################
 # SMC: Step and wrapper

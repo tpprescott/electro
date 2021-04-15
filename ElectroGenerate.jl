@@ -7,18 +7,31 @@ using Combinatorics
 ############ Inference data
 
 # Start with NoEF
-function Posterior_NoEF(; data, fn::String)
-    B = smc(L_Ctrl(; data=data), Prior(), 5000, N_T=1000, alpha=0.6, Δt_min=1e-3, σ=[0.1, 0.05, 0.01])
-    save(B, :L_Ctrl; fn=fn)
-    return B
+function Posterior_Ctrl(; kwargs...)
+    SL_list = [LCtrl(data=yobs_Ctrl_1), LCtrl(data=yobs_Ctrl_2), LCtrl(data=yobs_Ctrl)]
+    fn_list = ["replicate_1", "replicate_2", "merged_data"]
+    p = Prior()
+    for (L, fn) in zip(SL_list, fn_list)
+        B = smc(L, p, 1000; synthetic_likelihood_n=500, N_T=333, alpha=0.8, Δt_min=1e-6, σ=[0.1, 0.05, 0.01], kwargs...)
+        save(B, :L_Ctrl; fn=fn)
+        mcmc!(B, 100, L, p, 500)
+        save(B, :L_Ctrl; fn=fn*"_post")
+    end
+    println("Success! Control posteriors all done")
+    return nothing
 end
 
 # Analyse NoEF results as a conditional expectation
-function EmpiricalSummary_NoEF(; fn::String)
-    B = load(:L_NoEF, (:v, :EB, :D); fn=fn)
-    C = ConditionalExpectation(B, S_NoEF(), n=500)
-    save(C, :S_NoEF; fn=fn)
-    return C
+function EmpiricalSummary_Ctrl()
+    Φ = S_Ctrl()
+    fn_list = ["replicate_1", "replicate_2", "merged_data"]
+    for fn in fn_list
+        B = load(:L_Ctrl, (:v, :EB, :D); fn=fn*"_post")
+        C = ConditionalExpectation(B, S_NoEF(); n=500)
+        save(C, :S_Ctrl; fn=fn*"_post")
+    end
+    println("Success! Control conditional expectations all done")
+    return nothing
 end
 
 
