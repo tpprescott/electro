@@ -8,7 +8,7 @@ using Combinatorics
 
 # Start with NoEF
 function Posterior_Ctrl(; kwargs...)
-    SL_list = [LCtrl(data=yobs_Ctrl_1), LCtrl(data=yobs_Ctrl_2), LCtrl(data=yobs_Ctrl)]
+    SL_list = [L_Ctrl(data=yobs_Ctrl_1), L_Ctrl(data=yobs_Ctrl_2), L_Ctrl(data=yobs_Ctrl)]
     fn_list = ["replicate_1", "replicate_2", "merged_data"]
     p = Prior()
     for (L, fn) in zip(SL_list, fn_list)
