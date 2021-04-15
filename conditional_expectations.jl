@@ -8,7 +8,7 @@
 # end
 
 export EmpiricalSummary, getnames
-export S_NoEF, S_Switch, S_Stop
+export S_Ctrl, S_Switch, S_Stop
 export ConditionalExpectation
 
 

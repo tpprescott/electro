@@ -13,7 +13,6 @@ export rand, pdf, logpdf, sample, mean
 
 export par_names, par_names_NoEF
 export prior_support
-export combination_powerset
 export get_par_names
 
 const par_names = (:v, :EB, :D, :γ1, :γ2, :γ3, :γ4)
@@ -28,7 +27,6 @@ const prior_support = [
     Uniform(0,2),
     Uniform(0,2),
 ]
-const combination_powerset = powerset([1,2,3,4])
 get_par_names(X) = par_names[[1,2,3,(Int(3).+X)...]]
 
 include("observations.jl")

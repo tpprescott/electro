@@ -8,8 +8,8 @@ using Combinatorics
 
 # Start with NoEF
 function Posterior_Ctrl(; kwargs...)
-    SL_list = [L_Ctrl(data=yobs_Ctrl_1), L_Ctrl(data=yobs_Ctrl_2), L_Ctrl(data=yobs_Ctrl)]
-    fn_list = ["replicate_1", "replicate_2", "merged_data"]
+    SL_list = (L_Ctrl(data=yobs_Ctrl_1), L_Ctrl(data=yobs_Ctrl_2), L_Ctrl(data=yobs_Ctrl))
+    fn_list = ("replicate_1", "replicate_2", "merged_data")
     p = Prior()
     for (L, fn) in zip(SL_list, fn_list)
         B = smc(L, p, 1000; synthetic_likelihood_n=500, N_T=333, alpha=0.8, Δt_min=1e-6, σ=[0.1, 0.05, 0.01], kwargs...)
@@ -18,46 +18,49 @@ function Posterior_Ctrl(; kwargs...)
         save(B, :L_Ctrl; fn=fn*"_post")
     end
     println("Success! Control posteriors all done")
-    return nothing
+    return true
 end
 
 # Analyse NoEF results as a conditional expectation
 function EmpiricalSummary_Ctrl()
     Φ = S_Ctrl()
-    fn_list = ["replicate_1", "replicate_2", "merged_data"]
+    fn_list = ("replicate_1", "replicate_2", "merged_data")
     for fn in fn_list
         B = load(:L_Ctrl, (:v, :EB, :D); fn=fn*"_post")
-        C = ConditionalExpectation(B, S_NoEF(); n=500)
+        C = ConditionalExpectation(B, S_Ctrl(); n=500)
         save(C, :S_Ctrl; fn=fn*"_post")
     end
     println("Success! Control conditional expectations all done")
-    return nothing
+    return true
 end
 
 
 # Set up the intermediate prior based on the NoEF output and evaluated against EF only
-function SequentialPosterior_EF(
-    X;
-    data,
-    fn::String,
-    kwargs...
-)
-    π_X = Prior(X)
-    B0 = load(:L_NoEF, (:v, :EB, :D); fn=fn)
+function Posterior_EF(X; kwargs...)
+    p = Prior(X)
 
-    σ = vcat([0.1, 0.05, 0.01], 0.05*ones(length(X)))
-    B1 = InferenceBatch(π_X, B0, σ[1:3])
-    smc(L_200(; data=data), π_X, 5000, B1, N_T=1000, alpha=0.8, Δt_min=1e-2, σ=σ)
-
-    save(B1, :L_EF; fn=fn)
-    return B1
+    dataCtrl_list = (yobs_Ctrl_1, yobs_Ctrl_2, yobs_Ctrl)
+    data200_list = (yobs_200_1, yobs_200_2, yobs_200)
+    
+    SL_list = (L_Joint(data_NoEF=a, data_EF=b) for (a,b) in zip(data_Ctrl_list, data_200_list))
+    fn_list = ("replicate_1", "replicate_2", "merged_data")
+    
+    for (L, fn) in zip(SL_list, fn_list)
+        B = smc(L, p, 1000; synthetic_likelihood_n=500, N_T=333, alpha=0.8, Δt_min=1e-6, σ=[0.1, 0.05, 0.01], kwargs...)
+        save(B, :L_Joint; fn=fn)
+        mcmc!(B, 100, L, p, 500)
+        save(B, :L_Joint; fn=fn*"_post")
+    end
+    println("Success! Posteriors for $X all done")
+    return true
 end
 
-function AllSequentialInference(; data, fn::String, kwargs...)
-    for X in combination_powerset
-        SequentialPosterior_EF(X; data=data, fn=fn, kwargs...)
+function AllPosterior_EF(; kwargs...)
+    for X in powerset([1,2,3,4])
+        Posterior_EF(X; kwargs...)
     end
-    return nothing
+    println("Success! All posteriors are done!")
+    return true
 end
 function AllSequentialPartitions(N::Int; data_NoEF, data_EF, fn::String, kwargs...)
     for X in combination_powerset
