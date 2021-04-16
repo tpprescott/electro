@@ -38,6 +38,10 @@ end
 # Set up the intermediate prior based on the NoEF output and evaluated against EF only
 function Posterior_EF(X; kwargs...)
     p = Prior(X)
+    σ=[0.1, 0.05, 0.01]
+    for i in X
+        push!(σ, 0.1)
+    end
 
     dataCtrl_list = (yobs_Ctrl_1, yobs_Ctrl_2, yobs_Ctrl)
     data200_list = (yobs_200_1, yobs_200_2, yobs_200)
@@ -46,7 +50,7 @@ function Posterior_EF(X; kwargs...)
     fn_list = ("replicate_1", "replicate_2", "merged_data")
     
     for (L, fn) in zip(SL_list, fn_list)
-        B = smc(L, p, 1000; synthetic_likelihood_n=500, N_T=333, alpha=0.8, Δt_min=1e-6, σ=[0.1, 0.05, 0.01], kwargs...)
+        B = smc(L, p, 1000; synthetic_likelihood_n=500, N_T=333, alpha=0.8, Δt_min=1e-6, σ=σ, kwargs...)
         save(B, :L_Joint; fn=fn)
         mcmc!(B, 100, L, p, 500)
         save(B, :L_Joint; fn=fn*"_post")
