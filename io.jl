@@ -67,7 +67,7 @@ function asave(a, attr_name, LT::Symbol, Names::NTuple{N, Symbol}; fn::String="e
     g1 = haskey(fid, g1_name) ? fid[g1_name] : create_group(fid, g1_name)
     g2 = haskey(g1, g2_name) ? g1[g2_name] : create_group(g1, g2_name)
     
-    overwrite_flag = haskey(g2, String(attr_name))
+    overwrite_flag = haskey(attributes(g2), String(attr_name))
     if overwrite_flag
         @info "Overwriting $attr_name attribute for $LT, $Names data"
         delete_attribute(g2, String(attr_name))
@@ -124,7 +124,7 @@ function load(ES::Symbol; fn::String="electro_data")
     return c
 end
 
-function aload(attr_name, LT::Symbol, Names::NTuple{N, Symbol}; fn::String="electro_data") where N
+function aload(attr_name, LT::Symbol, Names::NTuple{N, Symbol}; fn::String="merged_data_post") where N
     eval(LT) <: SyntheticLogLikelihood || error("Wrong symbol, mush --- $(eval(LT)) is not subtype of SyntheticLogLikelihood")
     fid = h5open(fn*".h5", "cw")
     

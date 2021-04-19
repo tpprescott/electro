@@ -2,7 +2,7 @@ include("ElectroInference.jl")
 module ElectroGenerate
 
 using ..ElectroInference
-using Combinatorics
+using Combinatorics, Distributions, Statistics
 
 ############ Inference data
 
@@ -66,14 +66,39 @@ function AllPosterior_EF(; kwargs...)
     println("Success! All posteriors are done!")
     return true
 end
-function AllSequentialPartitions(N::Int; data_NoEF, data_EF, fn::String, kwargs...)
+
+function PosteriorPartition_EF(L, X, N; synthetic_likelihood_n=500, kwargs...)
+    Names = get_par_names(X)
+    B = load(:L_Joint, Names, fn="merged_data_post")
+    prior = Prior(X)
+
+    # Form and sample from importance distribution
+    Σ = cov(B.θ)
+    q = MixtureModel(map(p->MvNormal(p.θ.θ, Σ), B))
+    ts = rand(q, N)
+    θs = Parameters.(eachcol(ts), Ref(Names))
+
+    # Get importance weights
+    logqs = logpdf(q, ts)
+    logps = logpdf(prior, ts)
+    simFlags = insupport.(Ref(prior), θs)
+
+    # Simulate and get importance weighted posterior ∫ L(θ) π(θ) dθ = ∫ L(θ) [π(θ)/q(θ)] q(θ) dθ
+    logsl = get_log_sl(L, θs, simFlags, synthetic_likelihood_n)
+    ell = logsl .+ logps .- logqs
+    ellmax = maximum(ell)
+    big_ell = log(mean(exp, ell.-ellmax)) + ellmax
+
+    asave(big_ell, :log_partition_function, :L_Joint, Names, fn="merged_data_post")
+    @info "Success! log_partition_function for $X is $big_ell"
+end
+function AllPosteriorPartitions(N::Int; synthetic_likelihood_n=500, kwargs...)
+    L = L_Joint(; data_NoEF=yobs_Ctrl, data_EF=yobs_200)
     for X in combination_powerset
-        Names = get_par_names(X)
-        B = load(:L_EF, Names, fn=fn)
-        big_ell = log_partition_function(L_Joint(data_NoEF=data_NoEF, data_EF=data_EF), X, B, N)
-        @info "log_partition_function for $X is $big_ell"
-        asave(big_ell, :log_partition_function, :L_EF, Names)
+        PosteriorPartition_EF(L, X, N, synthetic_likelihood_n=synthetic_likelihood_n, kwargs...)
     end
+    println("Success! All partition functions calculated!")
+    return true
 end
 
 # Analyse Switch results as a conditional expectation
