@@ -94,7 +94,7 @@ function PosteriorPartition_EF(L, X, N; synthetic_likelihood_n=500, kwargs...)
 end
 function AllPosteriorPartitions(N::Int; synthetic_likelihood_n=500, kwargs...)
     L = L_Joint(; data_NoEF=yobs_Ctrl, data_EF=yobs_200)
-    for X in combination_powerset
+    for X in powerset([1,2,3,4])
         PosteriorPartition_EF(L, X, N, synthetic_likelihood_n=synthetic_likelihood_n, kwargs...)
     end
     println("Success! All partition functions calculated!")
