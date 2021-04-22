@@ -74,11 +74,14 @@ function (Y::InferenceSummary)(y, x::AbstractVector{ComplexF64})
     pixelated_x = round.(x./Y.δ).*Y.δ
 
     dx = diff(pixelated_x)
+    
     td = sum(dx)
-    y[1] = abs(td)
-    y[2] = sum(abs, dx)
-    y[3] = std(abs.(dx))
-    y[4] = atan(imag(td), real(td))
+    y[1] = real(td)
+    y[2] = imag(td)
+    
+    len = (abs(d) for d in dx)
+    y[3] = sum(len)
+    y[4] = std(len)
     y
 end
 
