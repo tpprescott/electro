@@ -75,9 +75,9 @@ function (Y::InferenceSummary)(y, x::AbstractVector{ComplexF64})
 
     dx = diff(pixelated_x)
     
-    td = sum(dx)
+    td = pixelated_x[end]
     y[1] = real(td)
-    y[2] = imag(td)
+    y[2] = abs(td)
     
     len = (abs(d) for d in dx)
     y[3] = sum(len)
