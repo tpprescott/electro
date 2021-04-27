@@ -34,34 +34,36 @@ function EmpiricalSummary_Ctrl()
     return true
 end
 
-
-# Set up the intermediate prior based on the NoEF output and evaluated against EF only
-function Posterior_EF(X; kwargs...)
+function Posterior_EF(X; L, fn, kwargs...)
     p = Prior(X)
     σ=[0.1, 0.05, 0.01]
     for i in X
         push!(σ, 0.1)
     end
-
-    dataCtrl_list = (yobs_Ctrl_1, yobs_Ctrl_2, yobs_Ctrl)
-    data200_list = (yobs_200_1, yobs_200_2, yobs_200)
     
-    SL_list = (L_Joint(data_NoEF=a, data_EF=b) for (a,b) in zip(dataCtrl_list, data200_list))
-    fn_list = ("replicate_1", "replicate_2", "merged_data")
+    B = smc(L, p, 1000; synthetic_likelihood_n=500, N_T=333, alpha=0.8, Δt_min=1e-6, σ=σ, kwargs...)
+    save(B, :L_Joint; fn=fn)
+    mcmc!(B, 100, L, p, 500)
+    save(B, :L_Joint; fn=fn*"_post")
     
-    for (L, fn) in zip(SL_list, fn_list)
-        B = smc(L, p, 1000; synthetic_likelihood_n=500, N_T=333, alpha=0.8, Δt_min=1e-6, σ=σ, kwargs...)
-        save(B, :L_Joint; fn=fn)
-        mcmc!(B, 100, L, p, 500)
-        save(B, :L_Joint; fn=fn*"_post")
-    end
-    println("Success! Posteriors for $X all done")
+    println("Success! Posterior for $X done")
     return true
 end
 
-function AllPosterior_EF(; kwargs...)
-    for X in powerset([1,2,3,4])
-        Posterior_EF(X; kwargs...)
+function AllPosterior_EF(
+    dataCtrl_list=(yobs_Ctrl, yobs_Ctrl_1, yobs_Ctrl_2),
+    data200_list=(yobs_200, yobs_200_1, yobs_200_2),
+    fn_list = ("merged_data", "replicate_1", "replicate_2");
+    kwargs...
+)
+
+    SL_list = (L_Joint(data_NoEF=a, data_EF=b) for (a,b) in zip(dataCtrl_list, data200_list))
+
+    for (L, fn) in zip(SL_list, fn_list)
+        for X in powerset([1,2,3,4])
+            Posterior_EF(X; L=L, fn=fn, kwargs...)
+        end
+        println("Success! Posteriors for $fn are done!")
     end
     println("Success! All posteriors are done!")
     return true
