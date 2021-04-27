@@ -16,9 +16,9 @@ sizes = (
     legendfontsize=7,
 )
 
-B1 = load(:L_Ctrl, par_names[1:3], fn="tmp/replicate_1_post")
-B2 = load(:L_Ctrl, par_names[1:3], fn="tmp/replicate_2_post")
-B = load(:L_Ctrl, par_names[1:3], fn="tmp/merged_data_post")
+B1 = load(:L_Ctrl, par_names[1:3], fn="replicate_1_post")
+B2 = load(:L_Ctrl, par_names[1:3], fn="replicate_2_post")
+B = load(:L_Ctrl, par_names[1:3], fn="merged_data_post")
 
 ###########
 # Displacements
@@ -88,8 +88,8 @@ function see_summaries(B=B, B1=B1, B2=B2; kwargs...)
 
   # f0 = plot(; layout=(2,2), legend=:none)
   fig3 = plot(; layout=(2,2), legend=:none)
-  titles = ["Total displacement","Path length","Displacement variability","Final angle"]
-  labels = ["Displacement (μm)", "Length (μm)", "Standard Deviation (μm)", "Angle (rad)"]
+  titles = ["Horizontal displacement", "Overall displacement", "Path length", "Interval variability"]
+  labels = ["Displacement (μm)", "Displacement (μm)", "Path length (μm)", "Standard deviation (μm)"]
 
   for i in 1:4
   #  density!(f0, Y0dims[i], subplot=i, weights=W0, label="Post. pred.", seriescolor=1)

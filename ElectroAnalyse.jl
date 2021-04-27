@@ -354,156 +354,83 @@ function smush_EF(; kwargs...)
     f
 end
 
-# Fig. 8 --- Plot pre/post switch/stop behaviour
-export θbar
-const θbar = mean(b_124)
+# Predictions
+export predict_Summaries
+function predict_summaries(B=b4, k=10; kwargs...)
+    y_switch = hcat((rand(Y_Switch(t), k) for t in B.θ)...)
 
-export view_step
-function _pre(sol, n=5; kwargs...)
-    m = pre_step_mean(sol)
-    t = (pre_step_traj(sol[i]) for i in 1:n)
-    fig = plot(m; c=:red, ratio=:equal, label="Mean", linewidth=3, kwargs...)
-    for t_i in t
-        plot!(fig, t_i; label="")
+    titles = ["(a) Horizontal displacement", "(b) Overall displacement", "(c) Path length", "(d) Interval variability"]
+    labels = ["Displacement (μm)", "Displacement (μm)", "Path length (μm)", "Standard deviation (μm)"]  
+    fig = plot(; layout=(2,2), legend=:none)
+
+    for idx in 1:4
+        plot!(fig, selectdim(y_switch,1,8+idx), seriestype=:density, subplot=idx, title=titles[idx], xguide=labels[idx], yticks=[], label="Predicted")
+        yy = ylims(fig[idx])
+        yobs = selectdim(yobs_Switch, 1, 8+idx)
+        scatter!(fig, yobs, fill((yy[1]+yy[2])/3, length(yobs)); subplot=idx, markershape=:vline, seriescolor=:black, label="Observed")
     end
-    fig
-end
-function _post(sol, n=5; kwargs...)
-    m = post_step_mean(sol)
-    t = (post_step_traj(sol[i]) for i in 1:n)
-    fig = plot(m; c=:red, ratio=:equal, label="Mean", linewidth=3, kwargs...)
-    for t_i in t
-        plot!(fig, t_i; label="")
-    end
-    fig
+    plot!(fig; subplot=2, legend=:topright)
+    plot!(fig; kwargs...)
 end
 
-function view_step(θ = θbar; ht=0.75*colwidth, kwargs...)
-    sol_switch = rand(P_switch(θ), 500, save_idxs=2)
-    sol_stop = rand(P_stop(θ), 500, save_idxs=2)
-
-    f1 = _pre(sol_switch, title="(a) Before switch", legend=:none)
-    f2 = _post(sol_switch, title="(b) After switch", legend=:topright)
-    f3 = _pre(sol_stop, title="(c) Before stop", legend=:none)
-    f4 = _post(sol_stop, title="(d) After stop", legend=:none)
-
-    fig = plot(f1,f2,f3,f4; 
-        layout=(2,2),
-        size=(colwidth, ht),
+export compare_Switch
+function compare_Switch(B=b4, n=50; ht=1.5*colwidth, kwargs...)
+    fig = plot(;
+        layout=(1,2),
+        legend=:none,
+        ratio=:equal,
+        framestyle=:origin,
         xticks=[],
         yticks=[],
-        xlabel="",
-        ylabel="",
-        framestyle=:origin,
         link=:all,
+        size=(colwidth, ht),
         kwargs...
     )
+    plot!(fig, xobs_200[37:end, :] .- xobs_200[[37], :]; subplot=1, title="(e) Test: observed")
 
-    x = xlims(fig[4])[2]-30
-    y = ylims(fig[4])[1]+10
+    pars = rand(B.θ, n)
+    for t in pars
+        P = P_Switch(t)
+        u = rand(P, save_idxs=2, saveat=5).u
+        plot!(fig, u[37:61].-u[37]; subplot=2)
+    end
+    plot!(fig, subplot=2, title="(f) Test: predicted")
 
-    for sub in [2]
-        plot!(fig,
-            [x-100, x], [y, y];
-            annotations = (x-50, y+10, Plots.text(L"100 ~\mu m",8,:bottom)),
-            label="",
-            color=:black,
-            linewidth=4,
-            subplot = sub,
+    x = xlims(fig[2])[2]-20
+    y = ylims(fig[2])[1]+10
+
+    for sub in 1:2
+    plot!(fig,
+        [x-200, x], [y, y];
+        annotations = (x-100, y+20, Plots.text("200 μm", 7, :bottom, "helvetica")),
+        color=:black,
+        linewidth=4,
+        subplot = sub,
+        xlabel="",
+        ylabel="",
         )
     end
     fig
-
 end
 
-# Fig. 9 --- Polarity diagram
+export smush_Switch
+function smush_Switch(B=b4, k=10, n=50; ht=1.5*colwidth, kwargs...)
+    a = predict_summaries(B, k)
+    b = compare_Switch(B, n, link=:none)
 
-export coarse_polarity_diagram
-function coarse_polarity_diagram(; ht=colwidth, annfontsize=10, kwargs...)
-    Ω0 = Plots.Shape(Plots.partialcircle(0, 2π, 100, 0.6))
-    Ωp = Plots.Shape([0,2,2], [0,2,-2])
-    Ωm = Plots.Shape([0,-2,-2], [0,2,-2])
-    Ωperp = Plots.Shape([0,2,-2,2,-2],[0,2,2,-2,-2])
+    L = @layout [a{0.67h}; b]
+    f = plot(a, b; layout=L, size=(colwidth, ht), kwargs...)
+    xx = [xlims(f[j]) for j in 5:6]
+    yy = [ylims(f[j]) for j in 5:6]
 
-    fig = plot(;
-        legend=:none,
-        ratio=:equal,
-        framestyle=:box,
-        lims=(-1.5,1.5),
-        xticks=[],
-        yticks=[],
-        xlabel=L"p_x",
-        ylabel=L"p_y",
-        title="Coarse grained polarity",
-    )
-    plot!(fig, Ωp, c=1)
-    plot!(fig, Ωm, c=2)
-    plot!(fig, Ωperp, c=3)
-    plot!(fig, Ω0, c=4)
+    _x = (minimum(L[1] for L in xx), maximum(L[2] for L in xx))
+    _y = (minimum(L[1] for L in yy), maximum(L[2] for L in yy))
 
-    annotate!(fig, -0.2, 0.2, text(L"\Omega_0", annfontsize))
-    annotate!(fig, 0.0, 1.0, text(L"\Omega_\perp", annfontsize))
-    annotate!(fig, 0.0, -1.0, text(L"\Omega_\perp", annfontsize))
-    annotate!(fig, 1.0, 0.0, text(L"\Omega_+", annfontsize))
-    annotate!(fig, -1.0, 0.0, text(L"\Omega_-", annfontsize))
-
-    scatter!(fig, [0.0], [0.0], markercolor=:black, markersize=4)
-    annotate!(fig, -0.1, -0.1, text(L"0", annfontsize))
-    plot!(fig, [(0,0), (0.6,0)], arrow=:closed, linecolor=:black)
-    annotate!(fig, 0.3, 0.1, text(L"\bar p", annfontsize))
-
-    plot!(fig; size=(colwidth, ht), kwargs...)
-    fig
+    for j in 5:6
+        xlims!(f[j], _x)
+        ylims!(f[j], _y)
+    end
+    f
 end
-
-# Fig. 9 --- Polarity trajectories
-export see_coarse_polarity
-function see_coarse_polarity(θ = θbar; ht=0.75*colwidth, kwargs...)
-    pbar2 = ElectroInference.pbar2(θ)
-    YY = (T_depolarise(pbar2), T_pos(pbar2), T_neg(pbar2), T_perp(pbar2))
-
-    sol_switch = rand(P_switch(θ), 500, save_idxs=1)
-    sol_stop = rand(P_stop(θ), 500, save_idxs=1)
-    
-    fig1 = plot(0:0.1:180, YY, sol_switch, title="(a) Switching EF", labels=["Depolarised" "Positive" "Negative" "Perpendicular"], c=[4 1 2 3])
-    fig2 = plot(0:0.1:180, YY, sol_stop, title="(b) Stopping EF", legend=:none, c=[4 1 2 3])
-
-    fig = plot(fig1, fig2; layout=(1,2), size=(1.5*colwidth, ht), xlabel="Time (min)", ylabel="Proportion", kwargs...)
-    fig
-end
-
-# Fig. 10 --- Posterior predictive switching stats
-export predictive_step
-
-c_Switch = load(:S_Switch)
-c_Stop = load(:S_Stop)
-
-function predictive_step(; ht=1.5*colwidth, kwargs...)
-    fig = plot(;
-        layout=(3,1),
-        size=(colwidth, ht),
-    )
-    plot!(fig, c_Switch;
-        infty=[180, 360, 1],
-        c=1,
-        label="Switch",
-    )
-    plot!(fig, c_Stop;
-        infty=[180, 360, 1],
-        c=2,
-        label="Stop",
-    )
-    plot!(fig;
-        subplot=1,
-        legend=:true)
-    plot!(fig; subplot=1, title="(a) Time to depolarise")
-    plot!(fig; subplot=2, title="(b) Time to polarise R to L")
-    plot!(fig; subplot=3, title="(c) Prob. polarised perpendicular")
-    plot!(fig;
-        kwargs...
-    )
-    fig
-end
-
 
 end

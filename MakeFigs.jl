@@ -88,6 +88,13 @@ function Fig67(fn="EF_Smush.svg", pth=pth)
     return fig
 end
 
+function Fig89(fn="smush_Switch.svg", pth=pth)
+    fig = smush_Switch(; sizes...)
+    savefig(fig, fn, pth)
+    return fig
+end
+
+#=
 function Fig8(fn="Predict_Displacement.svg", pth=pth)
     fig = view_step(; sizes...)
     savefig(fig, fn, pth)
@@ -111,3 +118,4 @@ function Fig10(fn="EF_Predictive.svg", pth=pth)
     savefig(fig, fn, pth)
     return fig
 end
+=#

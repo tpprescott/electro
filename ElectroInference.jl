@@ -51,11 +51,6 @@ export yobs_Ctrl, yobs_Ctrl_1, yobs_Ctrl_2
 export xobs_200, xobs_200_1, xobs_200_2
 export yobs_200, yobs_200_1, yobs_200_2
 
-const u_NoEF = NoEF()
-const u_EF = ConstantEF(1)
-const u_switch = StepEF(1, -1, 90)
-const u_stop = StepEF(1, 0, 90)
-
 # P_NoEF(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), NoEF())
 # P_EF(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), ConstantEF(1))
 P_Ctrl(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), NoEF(), tspan=(0.0,300.0))
@@ -87,18 +82,14 @@ const yobs_200_1 = summarise(xobs_200_1, IntervalsSummary([1:13, 13:37]))
 const yobs_200_2 = summarise(xobs_200_2, IntervalsSummary([1:13, 13:37]))
 const yobs_200 = hcat(yobs_200_1, yobs_200_2)
 
-# For analysis purposes
-# ConditionalExpectation(b_NoEF, S_NoEF(), n=500)
-export P_switch, P_stop
-export P_Ctrl_0, P_Ctrl_1, P_Switched
+# For analysis purposes: prediction of switched behaviour vs data
+export P_Switch, Y_Switch
+export yobs_Switch_1, yobs_Switch_2, yobs_Switch
 
-P_switch(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), u_switch)
-P_stop(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), u_stop)
-
-const long_tspan = (0.0, 1800.0)
-P_Ctrl_0(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(0), NoEF(), tspan=long_tspan)
-P_Ctrl_1(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(1), NoEF(), tspan=long_tspan)
-P_Switched(θ) = TrajectoryDistribution(θ, FixedInitialPolarity(1), ConstantEF(-1), tspan=long_tspan)
-
+P_Switch(θ) = TrajectoryDistribution(θ, RandomInitialPolarity(0.1), NStepEF([1, -1], [60, 180]), tspan=(0.0, 300.0))
+Y_Switch(θ) = TrajectoryRandomVariable(IntervalsSummary([1:13, 13:37, 37:61]), P_Switch(θ))
+const yobs_Switch_1 = summarise(xobs_200_1, IntervalsSummary([1:13, 13:37, 37:61]))
+const yobs_Switch_2 = summarise(xobs_200_2, IntervalsSummary([1:13, 13:37, 37:61]))
+const yobs_Switch = hcat(yobs_Switch_1, yobs_Switch_2)
 
 end
