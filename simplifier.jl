@@ -1,13 +1,17 @@
 module SimpleElectro
 
+using Logging: global_logger
+using TerminalLoggers: TerminalLogger
+using ProgressLogging
+global_logger(TerminalLogger())
+
 using DifferentialEquations
 using Roots
 using LinearAlgebra, Distances
 using Distributions, StatsBase
 using RecipesBase
-using Logging: global_logger
-using TerminalLoggers: TerminalLogger
-global_logger(TerminalLogger())
+
+include("progressEnsemble.jl")
 
 export EF, ElectroSim, Parameters, ParDistribution
 export SyntheticLogLikelihood
@@ -34,7 +38,7 @@ struct ElectroSim{T}
     sol::T
     function ElectroSim(args...; dt=2^-8, σ0=1.0, kwargs...)
         prob = makeProb(args...; σ0=σ0, kwargs...)
-        sol = solve(prob, adaptive=false, dt=dt, saveat=5, save_idxs=[1,2])
+        sol = solve(prob, adaptive=false, dt=dt, saveat=5, save_idxs=[1,2], progress=true)
         T = typeof(sol)
         return new{T}(sol)
     end
@@ -229,26 +233,34 @@ end
 # Simulation functions
 function f(dx, x, p, t)
     
-    dpos = view(dx, 1:2)
-    dpol = view(dx, 3:4)
-    pos = view(x, 1:2)
-    pol = view(x, 3:4)
+#    dpos = view(dx, 1:2)
+#    dpol = view(dx, 3:4)
+#    pos = view(x, 1:2)
+#    pol = view(x, 3:4)
     
     γ₁ = get(p, :γ₁, 0.0)
     γ₂ = get(p, :γ₂, 0.0)
     γ₃ = get(p, :γ₃, 0.0)
     γ₄ = get(p, :γ₄, 0.0)
-    u = get(p, :u, [0.0,0.0])
+    u1, u2 = get(p, :u, [0.0,0.0])
     v = p[:v]
     D = abs(p[:D])
 
-    npol = norm(pol)
-    nu = norm(u)
+#    npol = norm(pol)
+#    nu = norm(u)
 
-    @. dpol = -D*(pol - γ₄*u)
-    @. dpos = γ₁*v*u
+    npol = sqrt(x[3]^2 + x[4]^2)
+    nu = sqrt(u1^2 + u2^2)
+
+    dx[3] = -D*(x[3] + γ₄*u1)
+    dx[4] = -D*(x[4] + γ₄*u2)
+
+    dx[1] = γ₁*v*u1
+    dx[2] = γ₁*v*u2
+    
     if !iszero(npol)
-        @. dpos += v*pol*(1 + γ₂*nu + γ₃*u*pol/npol)
+        dx[1] += v*x[3]*(1 + γ₂*sqrt(nu) + γ₃*u1*x[3]/sqrt(npol))
+        dx[2] += v*x[4]*(1 + γ₂*sqrt(nu) + γ₃*u2*x[4]/sqrt(npol))
     end
     return nothing
 end
@@ -258,6 +270,7 @@ function g(dx, x, p, t)
     dx[2] = 0.0
     dx[3] = σ
     dx[4] = σ
+    return nothing
 end
 
 function makeSwitches(U::EF)
@@ -404,7 +417,7 @@ function SyntheticLogLikelihood(n::Int=500, U::EF=EF(), tspan=(0.0,300.0); data,
             output_func=summariser(U, tspan),
             batchSyntheticLogLikelihood(data)...)
     
-        es = solve(EP, SOSRA(), EnsembleDistributed(), save_idxs=[1,2], saveat=5, trajectories=length(θ)*n, batch_size=n, progress=true)
+        es = solve(EP, SOSRA(), EnsembleDistributed(), save_idxs=[1,2], saveat=5, trajectories=length(θ)*n, batch_size=n)
         return es.u
     end
     return f
