@@ -5,7 +5,9 @@ using Roots
 using LinearAlgebra, Distances
 using Distributions, StatsBase
 using RecipesBase
-using ProgressMeter
+using Logging: global_logger
+using TerminalLoggers: TerminalLogger
+global_logger(TerminalLogger())
 
 export EF, ElectroSim, Parameters, ParDistribution
 export SyntheticLogLikelihood
