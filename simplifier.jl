@@ -14,7 +14,7 @@ using RecipesBase
 include("progressEnsemble.jl")
 
 export EF, ElectroSim, Parameters, ParDistribution
-export SyntheticLogLikelihood, SummaryStatistics, Positions
+export Positions, SummaryStatistics, SyntheticLogLikelihood, PosteriorLogLikelihood
 export ESS
 export mcmc!, smc
 export Prior, Xs
@@ -61,9 +61,9 @@ struct ElectroSim{T} <: Trajectory
         T = typeof(sol)
         new{T}(sol)
     end
-    function ElectroSim(args...; dt=2^-8, σ0=1.0, kwargs...)
+    function ElectroSim(args...; dt=2^-3, σ0=1.0, kwargs...)
         prob = makeProb(args...; σ0=σ0, kwargs...)
-        sol = solve(prob, adaptive=false, dt=dt, saveat=5, save_idxs=[1,2], progress=true)
+        sol = solve(prob, EM(), adaptive=false, dt=dt, saveat=5, save_idxs=[1,2], progress=true)
         T = typeof(sol)
         return new{T}(sol)
     end
@@ -270,7 +270,6 @@ end
     
 # Simulation functions
 function f(dx, x, p, t)
-    
     γ₁ = get(p, :γ₁, 0.0)
     γ₂ = get(p, :γ₂, 0.0)
     γ₃ = get(p, :γ₃, 0.0)
@@ -278,7 +277,7 @@ function f(dx, x, p, t)
     u1 = get(p, :u1, 0.0)
     u2 = get(p, :u2, 0.0)
     v = p[:v]
-    D = abs(p[:D])
+    D = p[:D]
 
     npol = sqrt(x[3]^2 + x[4]^2)
     nu = sqrt(u1^2 + u2^2)
@@ -295,12 +294,13 @@ function f(dx, x, p, t)
     end
     return nothing
 end
+
+using SparseArrays
+const G = sparse([3,4],[1,2],1.0)
 function g(dx, x, p, t)
-    σ = sqrt(2*abs(p[:D]))
-    dx[1] = 0.0
-    dx[2] = 0.0
-    dx[3] = σ
-    dx[4] = σ
+    σ = sqrt(2*p[:D])
+    dx[3, 1] = σ
+    dx[4, 2] = σ
     return nothing
 end
 
@@ -327,6 +327,7 @@ function _makeProb(U::EF, tspan, pol0; kwargs...)
         vcat(zeros(2), pol0),
         tspan,
         pars;
+        noise_rate_prototype=G,
         callback=makeSwitches(U),
         tstops=collect(keys(U.switches)),
     )
@@ -456,7 +457,7 @@ function Positions(n::Integer=1, U::EF=EF(), tspan=(0.0,300.0); alg=EM(), kwargs
             prob_func=initialiser(θ, batch_size=n),
             output_func=(sol, i)->(ElectroSim(sol), false),
         )
-        es = solve(EP, alg, EnsembleDistributed(); save_idxs=[1,2], saveat=5, dt=2^-3, trajectories=length(θ)*n, kwargs..., extra_kwargs...)
+        es = solve(EP, alg, EnsembleSplitThreads(); save_idxs=[1,2], saveat=5, dt=2^-3, trajectories=length(θ)*n, kwargs..., extra_kwargs...)
         return es.u
     end
     return f
@@ -470,7 +471,7 @@ function SummaryStatistics(n::Integer=500, U::EF=EF(), tspan=(0.0,300.0); alg=EM
             output_func=summariser(U, tspan),
             batchSummaryStats()...
         )
-        es = solve(EP, alg, EnsembleDistributed(); save_idxs=[1,2], saveat=5, dt=2^-3, trajectories=length(θ)*n, batch_size=n, kwargs..., extra_kwargs...)
+        es = solve(EP, alg, EnsembleSplitThreads(); save_idxs=[1,2], saveat=5, dt=2^-3, trajectories=length(θ)*n, batch_size=n, kwargs..., extra_kwargs...)
         return es.u
     end
     return f
@@ -484,11 +485,31 @@ function SyntheticLogLikelihood(n::Integer=500, U::EF=EF(), tspan=(0.0,300.0); d
             output_func=summariser(U, tspan),
             batchSyntheticLogLikelihood(data)...
         )
-        es = solve(EP, alg, EnsembleDistributed(); save_idxs=[1,2], saveat=5, dt=2^-3, trajectories=length(θ)*n, batch_size=n, kwargs..., extra_kwargs...)
+        es = solve(EP, alg, EnsembleSplitThreads(); save_idxs=[1,2], saveat=5, dt=2^-3, trajectories=length(θ)*n, batch_size=n, kwargs..., extra_kwargs...)
         return es.u
     end
     return f
 end
+function PosteriorLogLikelihood(prior::ParDistribution, L...; kwargs...)
+    f = function(θ::Parameters; extra_kwargs...)
+        n = length(θ)
+        q = ParDistribution(θ)
+        t = Parameters(q, n=length(θ))
+        ℓ = logpdf(prior,t) .- logpdf(q,t)
+        I = isfinite.(ℓ)
+        for Lᵢ in L
+            ℓ[I] .+= Lᵢ(t[I]; kwargs..., extra_kwargs...)
+        end
+        M = maximum(ℓ)
+        ℓ .-= M
+        out = log(mean(exp, ℓ))+M
+        return out
+    end
+    return f
+end
+function PosteriorLogLikelihood(prior)
+end
+
 
 using CSV, DataFrames
 function _readObservations(fn::String)

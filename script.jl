@@ -9,7 +9,7 @@ function generateSample(fun, vn, fn)
     return nothing
 end
 
-filename = "simpleOutput.jld2"
+generateSample(tup) = generateSample(tup..., "simpleOutput.jld2")
 fun_list_Ctrl = [
     (θ_Ctrl, :Ctrl),
     (θ_Ctrl_1, :Ctrl_1),
@@ -22,9 +22,8 @@ fun_list_Joint = vcat(
     [(θ_Joint_2[X], Symbol(:Joint_2_g, X...)) for X in Xs],
 )
 
-for (fun, nm) in fun_list_Ctrl
-    generateSample(fun, nm, filename)
-end
-for (fun, nm) in fun_list_Joint
-    generateSample(fun, nm, filename)
-end
+generateSample(fun_list_Ctrl[1])
+generateSample(fun_list_Joint[5])
+map(generateSample, fun_list_Ctrl[2:3])
+map(generateSample, fun_list_Joint[1:4])
+map(generateSample, fun_list_Joint[6:end])
