@@ -14,28 +14,52 @@ using RecipesBase
 include("progressEnsemble.jl")
 
 export EF, ElectroSim, Parameters, ParDistribution
-export SyntheticLogLikelihood
+export SyntheticLogLikelihood, SummaryStatistics, Positions
 export ESS
 export mcmc!, smc
 
 struct EF
-    u0::Vector{Float64}
     switches::Dict{Float64, Vector{Float64}}
-    function EF(switches=Dict{Float64, Vector{Float64}}(); u0=zeros(2))
+    function EF(switches=Dict{Float64, Vector{Float64}}())
         for u in values(switches)
             length(u)==2 || error("Need 2D u")
         end
-        return new(u0, switches)
+        return new(switches)
     end
 end
-function EF(ts, us; u0=zeros(2))
+function EF(ts, us)
     switches = Dict(Float64(ti)=>Float64.(ui) for (ti, ui) in zip(ts, us))
-    return EF(switches; u0=u0)
+    return EF(switches)
 end
 Base.length(U::EF) = length(U.switches)
 
-struct ElectroSim{T}
+abstract type Trajectory end
+function coords(::Trajectory) end
+function coords(::AbstractArray{<:Trajectory}) end
+@recipe function f(tr::Trajectory)
+    aspect_ratio := :equal
+    framestyle --> :origin
+    legend --> :none
+    xticks --> []
+    yticks --> []
+    coords(tr)
+end
+@recipe function f(trs::AbstractArray{T}) where T <: Trajectory
+    aspect_ratio := :equal
+    framestyle --> :origin
+    legend --> :none
+    xticks --> []
+    yticks --> []
+    coords(trs)
+end
+
+
+struct ElectroSim{T} <: Trajectory
     sol::T
+    function ElectroSim(sol)
+        T = typeof(sol)
+        new{T}(sol)
+    end
     function ElectroSim(args...; dt=2^-8, σ0=1.0, kwargs...)
         prob = makeProb(args...; σ0=σ0, kwargs...)
         sol = solve(prob, adaptive=false, dt=dt, saveat=5, save_idxs=[1,2], progress=true)
@@ -43,14 +67,15 @@ struct ElectroSim{T}
         return new{T}(sol)
     end
 end
-@recipe function f(sim::ElectroSim{T}) where T 
-    aspect_ratio := :equal
-    framestyle --> :origin
-    legend --> :none
-    xticks --> []
-    yticks --> []
-    (sim.sol[1,:], sim.sol[2,:])
+function coords(es::ElectroSim)
+    es.sol[1,:], es.sol[2,:]
 end
+function coords(ess::AbstractArray{<:ElectroSim})
+    x = hcat((es.sol[1,:] for es in ess)...)
+    y = hcat((es.sol[2,:] for es in ess)...)
+    x, y
+end
+
 
 struct Parameters{N} <: AbstractArray{NamedTuple{N}, 1}
     θ::Matrix{Float64}
@@ -86,19 +111,6 @@ function ESS(logW::AbstractVector{Float64})
     num = sq(sum(w))
     den = sum(sq, w)
     return num/den
-end
-
-function ElectroSim(θ::Parameters, args...; kwargs...)
-    simVec = map(θ) do p
-        ElectroSim(args...; kwargs..., p...)
-    end
-    return simVec
-end
-function ElectroSim(θ::Parameters, n::Integer, args...; kwargs...)
-    simMat = map(Iterators.product(θ, 1:n)) do (p,i)
-        ElectroSim(args...; kwargs..., p...)
-    end
-    return simMat
 end
 
 struct ParDistribution{N, D<:MultivariateDistribution}
@@ -233,27 +245,20 @@ end
 # Simulation functions
 function f(dx, x, p, t)
     
-#    dpos = view(dx, 1:2)
-#    dpol = view(dx, 3:4)
-#    pos = view(x, 1:2)
-#    pol = view(x, 3:4)
-    
     γ₁ = get(p, :γ₁, 0.0)
     γ₂ = get(p, :γ₂, 0.0)
     γ₃ = get(p, :γ₃, 0.0)
     γ₄ = get(p, :γ₄, 0.0)
-    u1, u2 = get(p, :u, [0.0,0.0])
+    u1 = get(p, :u1, 0.0)
+    u2 = get(p, :u2, 0.0)
     v = p[:v]
     D = abs(p[:D])
-
-#    npol = norm(pol)
-#    nu = norm(u)
 
     npol = sqrt(x[3]^2 + x[4]^2)
     nu = sqrt(u1^2 + u2^2)
 
-    dx[3] = -D*(x[3] + γ₄*u1)
-    dx[4] = -D*(x[4] + γ₄*u2)
+    dx[3] = -D*(x[3] - γ₄*u1)
+    dx[4] = -D*(x[4] - γ₄*u2)
 
     dx[1] = γ₁*v*u1
     dx[2] = γ₁*v*u2
@@ -277,22 +282,25 @@ function makeSwitches(U::EF)
     condition(u, t, integrator) = t ∈ keys(U.switches)
     function affect!(integrator)
         t_switch = integrator.t
-        integrator.p[:u] .= U.switches[t_switch]
+        u = U.switches[t_switch]
+        integrator.p[:u1] = u[1]
+        integrator.p[:u2] = u[2]
     end
     cb = DiscreteCallback(condition, affect!, save_positions=(false, true))
 end
 
 function makeProb(U::EF = EF(), tspan = (0.0,300.0); σ0=1.0, kwargs...)
     pol0=σ0.*randn(2)
-    _makeProb(U, tspan, pol0; u=U.u0, kwargs...)
+    _makeProb(U, tspan, pol0; kwargs...)
 end
 function _makeProb(U::EF, tspan, pol0; kwargs...)
+    pars = Dict{Symbol, Float64}(kwargs)
     return SDEProblem(
         f,
         g,
         vcat(zeros(2), pol0),
         tspan,
-        kwargs;
+        pars;
         callback=makeSwitches(U),
         tstops=collect(keys(U.switches)),
     )
@@ -300,15 +308,21 @@ end
 
 function initialiser(parameterVectors::Parameters{N}, U::EF = EF(), tspan = (0.0, 300.0); batch_size::Integer, σ0=1.0, kwargs...) where N
     f = function (prob, i, repeat)
+        prob.u0[3] = σ0*randn()
+        prob.u0[4] = σ0*randn()
         n = cld(i, batch_size)
-        pars = parameterVectors[n]
-        makeProb(U, tspan; σ0=σ0, prob.p..., kwargs..., pars...)
+        for (key, val) in zip(N, selectdim(parameterVectors.θ, 2, n))
+            prob.p[key] = val
+        end
+        prob
     end
     return f
 end
 function initialiser(U::EF = EF(), tspan = (0.0, 300.0); σ0=1.0, kwargs...)
     f = function (prob, i, repeat)
-        makeProb(U, tspan; σ0=σ0, prob.p..., kwargs...)
+        prob.u0[3] = σ0*randn()
+        prob.u0[4] = σ0*randn()
+        prob
     end
     return f
 end
@@ -408,7 +422,34 @@ function batchSyntheticLogLikelihood(yobs, ::Type{D}=MvNormal) where D<:Multivar
     return (reduction=f, u_init=u_init)
 end
 
-function SyntheticLogLikelihood(n::Int=500, U::EF=EF(), tspan=(0.0,300.0); data, kwargs...)
+function Positions(n::Integer=1, U::EF=EF(), tspan=(0.0,300.0); kwargs...)
+    f = function(θ::Parameters)
+        P = makeProb(U, tspan; θ[1]..., kwargs...)
+        EP = EnsembleProblem(
+            P;
+            prob_func=initialiser(θ, batch_size=n),
+            output_func=(sol, i)->(ElectroSim(sol), false),
+        )
+        es = solve(EP, SOSRA(), EnsembleDistributed(), save_idxs=[1,2], saveat=5, trajectories=length(θ)*n)
+        return es.u
+    end
+    return f
+end
+function SummaryStatistics(n::Integer=500, U::EF=EF(), tspan=(0.0,300.0); kwargs...)
+    f = function(θ::Parameters)
+        P = makeProb(U, tspan; θ[1]..., kwargs...)
+        EP = EnsembleProblem(
+            P;
+            prob_func=initialiser(θ, batch_size=n),
+            output_func=summariser(U, tspan),
+            batchSummaryStats()...
+        )
+        es = solve(EP, SOSRA(), EnsembleDistributed(), save_idxs=[1,2], saveat=5, trajectories=length(θ)*n, batch_size=n)
+        return es.u
+    end
+    return f
+end
+function SyntheticLogLikelihood(n::Integer=500, U::EF=EF(), tspan=(0.0,300.0); data, kwargs...)
     f = function(θ::Parameters)
         P = makeProb(U, tspan; θ[1]..., kwargs...)
         EP = EnsembleProblem(
@@ -432,26 +473,16 @@ end
 
 
 export ElectroData
-struct ElectroData
+struct ElectroData <: Trajectory
     xy::Array{Float64,2}
 end
-@recipe function f(D::ElectroData)
-    aspect_ratio := :equal
-    framestyle --> :origin
-    legend --> :none
-    xticks --> []
-    yticks --> []
-    (selectdim(D.xy,2,1), selectdim(D.xy,2,2))
+function coords(D::ElectroData)
+    selectdim(D.xy, 2, 1), selectdim(D.xy, 2, 2)
 end
-@recipe function f(Dvec::AbstractVector{ElectroData})
-    aspect_ratio := :equal
-    framestyle --> :origin
-    legend --> :none
-    xticks --> []
-    yticks --> []
-    x = hcat((selectdim(D.xy,2,1) for D in Dvec)...)
-    y = hcat((selectdim(D.xy,2,2) for D in Dvec)...)
-    (x, y)
+function coords(Ds::AbstractArray{<:ElectroData})
+    x = hcat((selectdim(D.xy, 2, 1) for D in Ds)...)
+    y = hcat((selectdim(D.xy, 2, 2) for D in Ds)...)
+    x, y
 end
 
 function getPositions()
