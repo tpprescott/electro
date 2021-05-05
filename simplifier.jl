@@ -158,7 +158,7 @@ function resample(θ::Parameters{N}) where N
     return Parameters{N}(θ.θ[:,idx])
 end
 
-function mcmc!(θ::Parameters{N}, prior::ParDistribution{N}, L...; t=1, proposal_dist = Proposals(θ)) where N
+function mcmc!(θ::Parameters{N}, prior::ParDistribution{N}, L...; temp=1, proposal_dist = Proposals(θ), kwargs...) where N
     n = length(θ)
     θstar = proposal_dist(θ)
     α = logpdf(prior, θstar)
@@ -167,11 +167,11 @@ function mcmc!(θ::Parameters{N}, prior::ParDistribution{N}, L...; t=1, proposal
     logLstar = zeros(n)
     logL = zeros(n)
     for Lᵢ in L
-        logLstar .+= Lᵢ(θstar)
-        logL .+= Lᵢ(θ)
+        logLstar .+= Lᵢ(θstar; kwargs...)
+        logL .+= Lᵢ(θ; kwargs...)
     end
 
-    @. α += t*(logLstar - logL)
+    @. α += temp*(logLstar - logL)
     u = log.(rand(n))
     accepted = u.<α
 
@@ -209,35 +209,46 @@ function _tempIncrement(θ::Parameters, logL, λ, t, dt_range)
     return dt
 end
 
+function _getdt(log2dt_min, log2dt_max)
+    f = function(temp)
+        log2dt = temp*log2dt_min + (1-temp)*log2dt_max
+        return 2^log2dt
+    end
+    return f
+end
+
 function smc(
     prior::ParDistribution, 
     L...;
     Σ0,
     n=1000,
-    dt_range=(1e-6, 1.0),
+    dtemp_range=(1e-5, 1.0),
+    log2dt_range=(-3, 2),
     λ=7/8,
     ResampleESS=n*(λ^5),
 )
 
     θ = Parameters(prior, n=n)
     prop_dist = Proposals(Σ0)
+    dt = _getdt(log2dt_range...)
 
     logL = zeros(n)
+    temp = 0.0
     for Lᵢ in L
-        logL .+= Lᵢ(θ)
+        logL .+= Lᵢ(θ, dt=dt(temp))
     end
-    t = 0.0
-    while t < 1.0
-        dt = _tempIncrement(θ, logL, λ, t, dt_range)
-        t += dt
-        θ.logW .+= dt*logL
+    while temp < 1.0
+        dtemp = _tempIncrement(θ, logL, λ, temp, dtemp_range)
+        temp += dtemp
+        θ.logW .+= dtemp*logL
         ess = ESS(θ)
-        @info "temperature = $t ; ESS = $ess"
+        @info "temperature = $temp ; ESS = $ess"
         if ess ≤ ResampleESS
             θ = resample(θ)
             prop_dist = Proposals(θ)
         end
-        logL .= mcmc!(θ, prior, L...; t=t, proposal_dist=prop_dist)
+        log2dt = temp*log2dt_range[1] + (1-temp)*log2dt_range[2]
+        logL .= mcmc!(θ, prior, L...; temp=temp, proposal_dist=prop_dist, dt=dt(temp))
     end
     return θ
 end
@@ -422,43 +433,43 @@ function batchSyntheticLogLikelihood(yobs, ::Type{D}=MvNormal) where D<:Multivar
     return (reduction=f, u_init=u_init)
 end
 
-function Positions(n::Integer=1, U::EF=EF(), tspan=(0.0,300.0); kwargs...)
-    f = function(θ::Parameters)
-        P = makeProb(U, tspan; θ[1]..., kwargs...)
+function Positions(n::Integer=1, U::EF=EF(), tspan=(0.0,300.0); alg=EM(), kwargs...)
+    f = function(θ::Parameters; extra_kwargs...)
+        P = makeProb(U, tspan; θ[1]...)
         EP = EnsembleProblem(
             P;
             prob_func=initialiser(θ, batch_size=n),
             output_func=(sol, i)->(ElectroSim(sol), false),
         )
-        es = solve(EP, SOSRA(), EnsembleDistributed(), save_idxs=[1,2], saveat=5, trajectories=length(θ)*n)
+        es = solve(EP, alg, EnsembleDistributed(); save_idxs=[1,2], saveat=5, dt=2^-3, trajectories=length(θ)*n, kwargs..., extra_kwargs...)
         return es.u
     end
     return f
 end
-function SummaryStatistics(n::Integer=500, U::EF=EF(), tspan=(0.0,300.0); kwargs...)
-    f = function(θ::Parameters)
-        P = makeProb(U, tspan; θ[1]..., kwargs...)
+function SummaryStatistics(n::Integer=500, U::EF=EF(), tspan=(0.0,300.0); alg=EM(), kwargs...)
+    f = function(θ::Parameters; extra_kwargs...)
+        P = makeProb(U, tspan; θ[1]...)
         EP = EnsembleProblem(
             P;
             prob_func=initialiser(θ, batch_size=n),
             output_func=summariser(U, tspan),
             batchSummaryStats()...
         )
-        es = solve(EP, SOSRA(), EnsembleDistributed(), save_idxs=[1,2], saveat=5, trajectories=length(θ)*n, batch_size=n)
+        es = solve(EP, alg, EnsembleDistributed(); save_idxs=[1,2], saveat=5, dt=2^-3, trajectories=length(θ)*n, batch_size=n, kwargs..., extra_kwargs...)
         return es.u
     end
     return f
 end
-function SyntheticLogLikelihood(n::Integer=500, U::EF=EF(), tspan=(0.0,300.0); data, kwargs...)
-    f = function(θ::Parameters)
-        P = makeProb(U, tspan; θ[1]..., kwargs...)
+function SyntheticLogLikelihood(n::Integer=500, U::EF=EF(), tspan=(0.0,300.0); data, alg=EM(), kwargs...)
+    f = function(θ::Parameters; extra_kwargs...)
+        P = makeProb(U, tspan; θ[1]...)
         EP = EnsembleProblem(
             P;
             prob_func=initialiser(θ, batch_size=n),
             output_func=summariser(U, tspan),
-            batchSyntheticLogLikelihood(data)...)
-    
-        es = solve(EP, SOSRA(), EnsembleDistributed(), save_idxs=[1,2], saveat=5, trajectories=length(θ)*n, batch_size=n)
+            batchSyntheticLogLikelihood(data)...
+        )
+        es = solve(EP, alg, EnsembleDistributed(); save_idxs=[1,2], saveat=5, dt=2^-3, trajectories=length(θ)*n, batch_size=n, kwargs..., extra_kwargs...)
         return es.u
     end
     return f
