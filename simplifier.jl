@@ -93,7 +93,7 @@ Base.length(p::Parameters) = size(p.θ, 2)
 Base.size(p::Parameters) = (length(p),)
 Base.IndexStyle(::Parameters) = IndexLinear()
 Base.getindex(p::Parameters{N}, i::Integer) where N = NamedTuple{N}(p.θ[:,i])
-Base.getindex(p::Parameters{N}, i) where N = NamedTuple{N}.(eachcol(p.θ[:,i]))
+Base.getindex(p::Parameters{N}, i) where N = Parameters{N}(getindex(p.θ, :, i))
 function Base.setindex!(p::Parameters, v, i)
     p.θ[:,i] .= v
 end
@@ -164,10 +164,13 @@ function mcmc!(θ::Parameters{N}, prior::ParDistribution{N}, L...; temp=1, propo
     α = logpdf(prior, θstar)
     α .-= logpdf(prior, θ)
 
+    # Indices of proposals in prior support
+    I = isfinite.(α)
+
     logLstar = zeros(n)
     logL = zeros(n)
     for Lᵢ in L
-        logLstar .+= Lᵢ(θstar; kwargs...)
+        logLstar[I] .+= Lᵢ(θstar[I]; kwargs...)
         logL .+= Lᵢ(θ; kwargs...)
     end
 
@@ -223,7 +226,7 @@ function smc(
     Σ0,
     n=1000,
     dtemp_range=(1e-5, 1.0),
-    log2dt_range=(-3, 2),
+    log2dt_range=(-3, 1),
     λ=7/8,
     ResampleESS=n*(λ^5),
 )
