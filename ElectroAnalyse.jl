@@ -241,7 +241,7 @@ end
 
 
 # Fig. 6 (SI) --- Compare posteriors
-function posterior_compare(; ht=colwidth, kwargs...)
+function posterior_compare(; ht=1.5*colwidth, kwargs...)
     fig = plot(
         b4,
         1:3;
@@ -355,7 +355,7 @@ function smush_EF(; kwargs...)
 end
 
 # Predictions
-export predict_Summaries
+export predict_summaries
 function predict_summaries(B=b4, k=10; kwargs...)
     y_switch = hcat((rand(Y_Switch(t), k) for t in B.θ)...)
 
@@ -364,17 +364,17 @@ function predict_summaries(B=b4, k=10; kwargs...)
     fig = plot(; layout=(2,2), legend=:none)
 
     for idx in 1:4
-        plot!(fig, selectdim(y_switch,1,8+idx), seriestype=:density, subplot=idx, title=titles[idx], xguide=labels[idx], yticks=[], label="Predicted")
+        plot!(fig, selectdim(y_switch,1,8+idx), seriestype=:density, subplot=idx, title=titles[idx], xguide=labels[idx], yticks=[], label="Sim.")
         yy = ylims(fig[idx])
         yobs = selectdim(yobs_Switch, 1, 8+idx)
-        scatter!(fig, yobs, fill((yy[1]+yy[2])/3, length(yobs)); subplot=idx, markershape=:vline, seriescolor=:black, label="Observed")
+        scatter!(fig, yobs, fill((yy[1]+yy[2])/3, length(yobs)); subplot=idx, markershape=:vline, seriescolor=:black, label="Data")
     end
-    plot!(fig; subplot=2, legend=:topright)
+    plot!(fig; subplot=2, legend=:right)
     plot!(fig; kwargs...)
 end
 
 export compare_Switch
-function compare_Switch(B=b4, n=50; ht=1.5*colwidth, kwargs...)
+function compare_Switch(B=b4, n=50; ht=0.75*colwidth, kwargs...)
     fig = plot(;
         layout=(1,2),
         legend=:none,
@@ -396,13 +396,13 @@ function compare_Switch(B=b4, n=50; ht=1.5*colwidth, kwargs...)
     end
     plot!(fig, subplot=2, title="(f) Test: predicted")
 
-    x = xlims(fig[2])[2]-20
+    x = xlims(fig[2])[1]+20
     y = ylims(fig[2])[1]+10
 
     for sub in 1:2
     plot!(fig,
-        [x-200, x], [y, y];
-        annotations = (x-100, y+20, Plots.text("200 μm", 7, :bottom, "helvetica")),
+        [x, x+200], [y, y];
+        annotations = (x+100, y+20, Plots.text("200 μm", 7, :bottom, "helvetica")),
         color=:black,
         linewidth=4,
         subplot = sub,
@@ -414,7 +414,7 @@ function compare_Switch(B=b4, n=50; ht=1.5*colwidth, kwargs...)
 end
 
 export smush_Switch
-function smush_Switch(B=b4, k=10, n=50; ht=1.5*colwidth, kwargs...)
+function smush_Switch(B=b4, k=10, n=25; ht=1.5*colwidth, kwargs...)
     a = predict_summaries(B, k)
     b = compare_Switch(B, n, link=:none)
 

@@ -71,13 +71,13 @@ function SIFigB(fn="EF_Posterior_Grid.svg", pth=pth)
 end
 
 function SIFigC(fn="Posterior_Compare.svg", pth=pth)
-    fig = posterior_compare(; sizes..., seriestype=:stephist, size=(1.5*colwidth, colwidth), legendfontsize=8, guidefontfamily=:match)
+    fig = posterior_compare(; sizes..., size=(colwidth, 1.5*colwidth), xlims=:auto)
     savefig(fig, fn, pth)
     return fig
 end
 
 function Fig7(fn="EF_Compare.svg", pth=pth)
-    fig = compare_EF(; ht=1.5*colwidth, sizes...)
+    fig = compare_Joint(; ht=1.5*colwidth, sizes...)
     savefig(fig, fn, pth)
     return fig
 end
