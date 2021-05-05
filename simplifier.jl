@@ -17,6 +17,7 @@ export EF, ElectroSim, Parameters, ParDistribution
 export SyntheticLogLikelihood, SummaryStatistics, Positions
 export ESS
 export mcmc!, smc
+export Prior, Xs
 
 struct EF
     switches::Dict{Float64, Vector{Float64}}
@@ -86,6 +87,12 @@ struct Parameters{N} <: AbstractArray{NamedTuple{N}, 1}
         return new{N}(θ, zeros(n))
     end
 end
+function Parameters{N}(θ, logW) where N
+    p = Parameters{N}(θ)
+    length(p)==length(logW) || error("Weights length must equal parameter length")
+    p.logW .= logW
+    return p
+end
 Parameters{N}(D::MultivariateDistribution; n::Int=1) where N = Parameters{N}(rand(D, n))
 Parameters{N}(intervals...; n::Int=1) where N = Parameters{N}(product_distribution([Uniform(I...) for I in intervals]); n=n)
 
@@ -93,7 +100,9 @@ Base.length(p::Parameters) = size(p.θ, 2)
 Base.size(p::Parameters) = (length(p),)
 Base.IndexStyle(::Parameters) = IndexLinear()
 Base.getindex(p::Parameters{N}, i::Integer) where N = NamedTuple{N}(p.θ[:,i])
-Base.getindex(p::Parameters{N}, i) where N = Parameters{N}(getindex(p.θ, :, i))
+function Base.getindex(p::Parameters{N}, i) where N
+    q = Parameters{N}(getindex(p.θ, :, i), getindex(p.logW, i))
+end
 function Base.setindex!(p::Parameters, v, i)
     p.θ[:,i] .= v
 end
@@ -150,7 +159,7 @@ function Proposals(K::MultivariateDistribution)
     return f
 end
 Proposals(Σ::Array{Float64}) = Proposals(MvNormal(Σ))
-Proposals(θ::Parameters) = Proposals(cov(θ.θ'))
+Proposals(θ::Parameters) = Proposals(2 .* cov(θ.θ'))
 function resample(θ::Parameters{N}) where N
     n = length(θ)
     w = Weights(exp.(θ.logW))
@@ -158,7 +167,7 @@ function resample(θ::Parameters{N}) where N
     return Parameters{N}(θ.θ[:,idx])
 end
 
-function mcmc!(θ::Parameters{N}, prior::ParDistribution{N}, L...; temp=1, proposal_dist = Proposals(θ), kwargs...) where N
+function _mcmc!(θ::Parameters{N}, prior::ParDistribution{N}, L...; temp=1, proposal_dist = Proposals(θ), kwargs...) where N
     n = length(θ)
     θstar = proposal_dist(θ)
     α = logpdf(prior, θstar)
@@ -184,10 +193,13 @@ function mcmc!(θ::Parameters{N}, prior::ParDistribution{N}, L...; temp=1, propo
     @info "MCMC step acceptance rate: $acceptance_rate"
     return logL
 end
-function mcmc!(θ::Parameters, n::Integer, args...; kwargs...)
+function mcmc!(θ::Parameters, n::Integer, prior::ParDistribution{N}, L...; init_resample=true, kwargs...) where N
+    if init_resample
+        θ = resample(θ)
+    end
     logL = zeros(length(θ))
-    for i in 1:n
-        logL .= mcmc!(θ, args...; kwargs...)
+    @progress for i in 1:n
+        logL .= _mcmc!(θ, prior::ParDistribution{N}, L...; kwargs...)
     end
     return logL
 end
@@ -251,7 +263,7 @@ function smc(
             prop_dist = Proposals(θ)
         end
         log2dt = temp*log2dt_range[1] + (1-temp)*log2dt_range[2]
-        logL .= mcmc!(θ, prior, L...; temp=temp, proposal_dist=prop_dist, dt=dt(temp))
+        logL .= _mcmc!(θ, prior, L...; temp=temp, proposal_dist=prop_dist, dt=dt(temp))
     end
     return θ
 end
@@ -579,6 +591,58 @@ export L_train_200, L_train_200_1, L_train_200_2
 const L_train_200_1 = SyntheticLogLikelihood(500, U_200, (0.0,180.0), data=yobs_200_1[1:8,:])
 const L_train_200_2 = SyntheticLogLikelihood(500, U_200, (0.0,180.0), data=yobs_200_2[1:8,:])
 const L_train_200 = SyntheticLogLikelihood(500, U_200, (0.0,180.0), data=yobs_200[1:8,:])
+
+export Y_Ctrl, Y_200
+Y_Ctrl(n=1) = SummaryStatistics(n, U_Ctrl, (0.0, 300.0))
+Y_200(n=1) = SummaryStatistics(n, U_200, (0.0, 300.0))
+
+export X_Ctrl, X_200
+X_Ctrl(n=1) = Positions(n, U_Ctrl, (0.0, 300.0))
+X_200(n=1) = Positions(n, U_200, (0.0, 300.0))
+
+using Combinatorics: powerset
+const Γ = (:γ₁, :γ₂, :γ₃, :γ₄)
+const priorDomain = Dict{Symbol, Tuple{Float64,Float64}}(:γ₁=>(0,2), :γ₂=>(0,2), :γ₃=>(0,2), :γ₄=>(0,2), :v=>(0,2), :D=>(0,0.5))
+const perturbationΣ = [.1, .1, .1, .1, .1, .025]
+const Xs = powerset(1:4)
+
+getParameterNames(X) = (Γ[X]..., :v, :D)
+function Prior(X=Int64[])
+    N = getParameterNames(X)
+    ParDistribution{N}((priorDomain[p] for p in N)...)
+end
+function Σ0(X=Int64[])
+    vcat(perturbationΣ[X], perturbationΣ[[5,6]])
+end
+Parameters(X=Int64[]; n) = Parameters(Prior(X); n=n)
+smc(X::Vector{<:Integer}, args...; kwargs...) = smc(Prior(X), args...; Σ0=Σ0(X), kwargs...)
+
+# Inference Calls
+export θ_Ctrl, θ_Ctrl_1, θ_Ctrl_2
+function _θ(X, L...; post_mcmc=true)
+    prior = Prior(X)
+    S0 = Σ0(X)
+    f = function ()
+        θ = smc(prior, L...; n=1000, Σ0=S0)
+        if post_mcmc
+            mcmc!(θ, 100, prior, L...; init_resample=true)
+        end
+        return θ
+    end
+    return f
+end
+θ_Ctrl = _θ(Int64[], L_Ctrl)
+θ_Ctrl_1 = _θ(Int64[], L_Ctrl)
+θ_Ctrl_2 = _θ(Int64[], L_Ctrl)
+
+export θ_Joint, θ_Joint_1, θ_Joint_2
+_θ_Joint(X) = _θ(X, L_Ctrl, L_train_200)
+_θ_Joint_1(X) = _θ(X, L_Ctrl_1, L_train_200_1)
+_θ_Joint_2(X) = _θ(X, L_Ctrl_2, L_train_200_2)
+
+θ_Joint = Dict(Xs .=> map(_θ_Joint, Xs))
+θ_Joint_1 = Dict(Xs .=> map(_θ_Joint_1, Xs))
+θ_Joint_2 = Dict(Xs .=> map(_θ_Joint_2, Xs))
 
 end
 
