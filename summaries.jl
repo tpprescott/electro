@@ -1,7 +1,7 @@
 export AbstractSummary
 export get_options
 export summarise, summarise!
-export InferenceSummary
+export InferenceSummary, IntervalsSummary
 
 export AnalysisSummary, HittingTime
 export T_polarise, T_depolarise, T_neg, T_pos, T_perp
@@ -74,13 +74,41 @@ function (Y::InferenceSummary)(y, x::AbstractVector{ComplexF64})
     pixelated_x = round.(x./Y.δ).*Y.δ
 
     dx = diff(pixelated_x)
+    
     td = sum(dx)
-    y[1] = abs(td)
-    y[2] = sum(abs, dx)
-    y[3] = std(abs.(dx))
-    y[4] = atan(imag(td), real(td))
+    y[1] = real(td)
+    y[2] = abs(td)
+    
+    len = (abs(d) for d in dx)
+    y[3] = sum(len)
+    y[4] = std(len)
     y
 end
+
+struct IntervalsSummary <: AbstractSummary
+    m::Vector{UnitRange}
+    δ::Float64
+    function IntervalsSummary(m, δ=eps())
+        δ>0 || error("Needs positive pixel length")
+        return new(m, δ)
+    end
+end
+Base.length(s::IntervalsSummary)=4*length(s.m)
+Base.eltype(::IntervalsSummary)=Float64
+get_options(::IntervalsSummary)=(saveat=5, save_idxs=2)
+function (Y::IntervalsSummary)(y, sol)
+    Y(y, sol.u)
+end
+
+function (Y::IntervalsSummary)(y, x::AbstractVector{ComplexF64})
+    z = reshape(y, 4, :)
+    Σ = InferenceSummary(Y.δ)
+    for (j, rg) in Iterators.enumerate(Y.m)
+        Σ(selectdim(z, 2, j), x[rg])
+    end
+    return y
+end
+
 
 ############################
 # FOR analysis

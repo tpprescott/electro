@@ -41,13 +41,14 @@ Base.promote_rule(::Type{ParameterSet{Names, T, M}}, ::Type{Parameters{Names, 2,
 abstract type ParameterDistribution{Names} <: ContinuousMultivariateDistribution end
 Base.length(::ParameterDistribution{Names}) where Names = length(Names)
 Parameters(π::ParameterDistribution{Names}, n...) where Names = Parameters(rand(π, n...), Names)
+ParameterSet(π::ParameterDistribution{Names}, n...) where Names = ParameterSet(rand(π, n...), Names)
 
 struct Prior{Names} <: ParameterDistribution{Names}
     π::ContinuousMultivariateDistribution
 
     function Prior(I=[])
         issubset(I, [1,2,3,4]) || error("Input subset of [1,2,3,4] only!")
-        J = [1,2,3,4,(I.+4)...]
+        J = [1,2,3,(I.+3)...]
         π = product_distribution(prior_support[J])
         return new{par_names[J]}(π)
     end
@@ -59,7 +60,7 @@ Distributions._rand!(rng::Random.AbstractRNG, π::Prior, x::AbstractMatrix{T}) w
 function Distributions.insupport(π::Prior{Names}, x::Parameters{Names}) where Names 
     Distributions.insupport(π.π, x)
 end
-function Distributions.insupport(π::Prior{Names}, x::Parameters{DiffNames,N}) where Names where DiffNames where N
+function Distributions.insupport(::Prior{Names}, x::Parameters{DiffNames,N}) where Names where DiffNames where N
     return N==1 ? false : falses(size(x)[2:end])
 end
 
@@ -104,9 +105,9 @@ struct Sequential{Names, MM} <: ParameterDistribution{Names}
         NoEF = MixtureModel(map(θ->MvNormal(θ, cov_matrix), eachcol(X)))
         MM = typeof(NoEF)
         
-        EF = product_distribution(prior_support[I.+4])
+        EF = product_distribution(prior_support[I.+3])
 
-        Names = par_names[[1,2,3,4,(I.+4)...]]
+        Names = par_names[[1,2,3,(I.+3)...]]
         return new{Names, MM}(NoEF, EF)
     end
     function Sequential(X::Parameters{(:v, :EB_on, :EB_off, :D), 2}, w::Weights, I=[1,2,3,4])
@@ -114,32 +115,32 @@ struct Sequential{Names, MM} <: ParameterDistribution{Names}
         NoEF = MixtureModel(map(θ->MvNormal(θ, cov_matrix), eachcol(X)), w./w.sum)
         MM = typeof(NoEF)
         
-        EF = product_distribution(prior_support[I.+4])
+        EF = product_distribution(prior_support[I.+3])
 
-        Names = par_names[[1,2,3,4,(I.+4)...]]
+        Names = par_names[[1,2,3,(I.+3)...]]
         return new{Names, MM}(NoEF, EF)
     end
 end
 
 Base.eltype(q::Sequential) = (eltype(q.NoEF)==eltype(q.EF)) ? eltype(q.NoEF) : error("Components of the Sequential distribution do not match element types")
 function Distributions._rand!(rng::Random.AbstractRNG, q::Sequential, x::AbstractVector{T}) where T<:Real
-    Distributions._rand!(rng, q.NoEF, view(x, 1:4))
-    Distributions._rand!(rng, q.EF, view(x, Not(1:4)))
+    Distributions._rand!(rng, q.NoEF, view(x, 1:3))
+    Distributions._rand!(rng, q.EF, view(x, Not(1:3)))
     x
 end
 function Distributions._rand!(rng::Random.AbstractRNG, q::Sequential, x::AbstractMatrix{T}) where T<:Real
-    Distributions._rand!(rng, q.NoEF, selectdim(x, 1, 1:4))
-    Distributions._rand!(rng, q.EF, selectdim(x, 1, Not(1:4)))
+    Distributions._rand!(rng, q.NoEF, selectdim(x, 1, 1:3))
+    Distributions._rand!(rng, q.EF, selectdim(x, 1, Not(1:3)))
     x
 end
 
 function Distributions._logpdf(q::Sequential, x::AbstractVector)
-    ell = Distributions._logpdf(q.NoEF, view(x, 1:4))
-    ell += Distributions._logpdf(q.EF, view(x, Not(1:4)))
+    ell = Distributions._logpdf(q.NoEF, view(x, 1:3))
+    ell += Distributions._logpdf(q.EF, view(x, Not(1:3)))
     ell
 end
 function Distributions._logpdf(q::Sequential, x::AbstractMatrix)
-    ell = Distributions._logpdf(q.NoEF, selectdim(x, 1, 1:4))
-    ell .+= Distributions._logpdf(q.EF, selectdim(x, 1, Not(1:4)))
+    ell = Distributions._logpdf(q.NoEF, selectdim(x, 1, 1:3))
+    ell .+= Distributions._logpdf(q.EF, selectdim(x, 1, Not(1:3)))
     ell
 end

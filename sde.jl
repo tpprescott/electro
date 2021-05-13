@@ -1,34 +1,20 @@
 NOISEFORM = [complex(1.0), complex(0.0)]
 
-function _map_barriers_to_coefficients(EB_on, EB_off)
-    pbar2 = get_pbar2(EB_on, EB_off)
-    β = get_β(EB_on, pbar2)
-    return β, pbar2
+function _map_barriers_to_coefficients(EB)
+    β = 4*EB
+    return β
 end
 
-using Polynomials: Polynomial, roots, fromroots
-F(R) = Polynomial([-R, 3*R, -3*(R-1), R-1])
-validp2(p2) = isreal(p2) && (0<real(p2)<1)
-function get_pbar2(EB_on, EB_off)
-    R = EB_on/EB_off
-    p2vec = filter(validp2, roots(F(R)))
-    length(p2vec)==1 || error("Too many (or not enough) valid roots found!")
-    return real(p2vec[1])
-end
-function get_β(EB_on, pbar2)
-    return 12 * EB_on / ((pbar2^2)*(3-pbar2))
-end
-
-∇W_poly(β, pbar2) = β*fromroots([pbar2,1])
-W_poly(β, pbar2) = (β/12)*Polynomial([0, 6*pbar2, -3(pbar2+1), 2])
+W_poly(β) = (β/4)*Polynomial([0, -2, 1])
+∇W_poly(β) = β*Polynomial([-1, 1])
 
 # Easy case - for zero input
 function SDEdrift(emf::NoEF;
-    v, EB_on, EB_off, D,
+    v, EB, D,
     kwargs...)
 
-    β, pbar2 = _map_barriers_to_coefficients(EB_on, EB_off)
-    ∇W = ∇W_poly(β, pbar2)
+    β = _map_barriers_to_coefficients(EB)
+    ∇W = ∇W_poly(β)
     
     dpol(pol) = -D * (∇W(abs2(pol))*pol)
     vel(pol) = v*pol
@@ -43,14 +29,14 @@ end
 # Harder case - for non-zero input
 dotprod(z1,z2) = real(z1)*real(z2) + imag(z1)*imag(z2)
 function SDEdrift(emf::AbstractEMField;
-    v, EB_on, EB_off, D,
+    v, EB, D,
     γ1=0.0, γ2=0.0, γ3=0.0, γ4=0.0,
     kwargs...)
 
-    β, pbar2 = _map_barriers_to_coefficients(EB_on, EB_off)
-    ∇W = ∇W_poly(β, pbar2)
+    β = _map_barriers_to_coefficients(EB)
+    ∇W = ∇W_poly(β)
 
-    dpol(pol,inp) = -D*(∇W(abs2(pol))*pol - γ4*inp)
+    dpol(pol, inp) = -D*(∇W(abs2(pol))*pol - γ4*inp)
     function vel(pol,inp) 
         x = γ1*v*inp
         pol==0 && (return x)

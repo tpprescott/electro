@@ -1,7 +1,7 @@
 export save, load, asave, aload
 
 # SAVING
-function save(b::InferenceBatch{Names}, LT::Symbol; fn::String="electro_data") where Names
+function save(b::InferenceBatch{P}, LT::Symbol; fn::String="electro_data") where P<:Parameters{Names,1} where Names
     eval(LT) <: SyntheticLogLikelihood || error("Wrong symbol, mush --- $(eval(LT)) is not subtype of SyntheticLogLikelihood")
     
     fid = h5open(fn*".h5", "cw")
@@ -15,15 +15,17 @@ function save(b::InferenceBatch{Names}, LT::Symbol; fn::String="electro_data") w
     if overwrite_flag
         @info "Overwriting $Names data for $LT"
         g2 = g1[g2_name]
-        for dset in g2
-            delete_object(dset)
+        for k in keys(g2)
+            delete_object(g2, k)
         end
     else
         g2 = create_group(g1, g2_name)
         attributes(g2)["Names"] = [String(nm) for nm in Names]
     end
 
-    write(g2, "θ", b.θ.θ)
+    parvec(p::Particle) = p.θ.θ
+    θmat = hcat(parvec.(b)...)
+    write(g2, "θ", θmat)
     write(g2, "log_sl", b.log_sl)
     write(g2, "ell", b.ell)
     
@@ -41,8 +43,8 @@ function save(c::ConditionalExpectation, ES::Symbol; fn::String="electro_data")
     if overwrite_flag
         @info "Overwriting $ES conditional expectations"
         g = fid[g_name]
-        for dset in g
-            delete_object(dset)
+        for k in keys(g)
+            delete_object(g, k)
         end
     else
         g = create_group(fid, g_name)
@@ -65,7 +67,7 @@ function asave(a, attr_name, LT::Symbol, Names::NTuple{N, Symbol}; fn::String="e
     g1 = haskey(fid, g1_name) ? fid[g1_name] : create_group(fid, g1_name)
     g2 = haskey(g1, g2_name) ? g1[g2_name] : create_group(g1, g2_name)
     
-    overwrite_flag = haskey(g2, String(attr_name))
+    overwrite_flag = haskey(attributes(g2), String(attr_name))
     if overwrite_flag
         @info "Overwriting $attr_name attribute for $LT, $Names data"
         delete_attribute(g2, String(attr_name))
@@ -80,10 +82,10 @@ end
 function InferenceBatch(G::HDF5.Group)
     str_names = read(attributes(G), "Names")
     Names = Tuple(map(Symbol, str_names))
-    P = Parameters(read(G, "θ"), Names)
-    ell = read(G, "ell")
+    P = ParameterSet(read(G, "θ"), Names)
     log_sl = read(G, "log_sl")
-    return InferenceBatch(P, ell, log_sl)
+    ell = read(G, "ell")
+    return StructArray(Particle.(P, log_sl, ell))
 end
 
 function load(LT::Symbol, Names::NTuple{N, Symbol}; fn::String="electro_data") where N
@@ -122,7 +124,7 @@ function load(ES::Symbol; fn::String="electro_data")
     return c
 end
 
-function aload(attr_name, LT::Symbol, Names::NTuple{N, Symbol}; fn::String="electro_data") where N
+function aload(attr_name, LT::Symbol, Names::NTuple{N, Symbol}; fn::String="merged_data_post") where N
     eval(LT) <: SyntheticLogLikelihood || error("Wrong symbol, mush --- $(eval(LT)) is not subtype of SyntheticLogLikelihood")
     fid = h5open(fn*".h5", "cw")
     

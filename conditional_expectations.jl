@@ -8,7 +8,7 @@
 # end
 
 export EmpiricalSummary, getnames
-export S_NoEF, S_Switch, S_Stop
+export S_Ctrl, S_Switch, S_Stop
 export ConditionalExpectation
 
 
@@ -58,31 +58,31 @@ end
 
 ##### For analysis
 
-pbar2(theta) = get_pbar2(theta[2], theta[3])
+pbar2(theta) = 1/3
 
 abstract type EmpiricalSummary end
 function getnames(::Type{T}) where T<:EmpiricalSummary
     error("Define the names of the summary statistic.")
 end
 
-function ConditionalExpectation(θ::ParameterSet, ell, Φ::ES; n=500) where ES<:EmpiricalSummary
+function ConditionalExpectation(θ, ell, Φ::ES; n=500) where ES<:EmpiricalSummary
     ϕ(θ_i) = Φ(θ_i; n=n)
     Dvec = @showprogress pmap(ϕ, θ)
     D = hcat(Dvec...)
     return ConditionalExpectation(D, ell, getnames(ES))
 end
 
-struct S_NoEF <: EmpiricalSummary end
-function (::S_NoEF)(θ::ParameterVector; n=500, y=zeros(Float64, 3, n))
+struct S_Ctrl <: EmpiricalSummary end
+function (::S_Ctrl)(θ::ParameterVector; n=500, y=zeros(Float64, 3, n))
     S = (
-        TrajectoryRandomVariable(T_polarise(pbar2(θ)), P_NoEF_0(θ)), 
-        TrajectoryRandomVariable(T_depolarise(pbar2(θ)), P_NoEF_1(θ)),
-        TrajectoryRandomVariable(IsPolarised(pbar2(θ),long_tspan), P_NoEF_0(θ)),
+        TrajectoryRandomVariable(T_polarise(pbar2(θ)), P_Ctrl_0(θ)), 
+        TrajectoryRandomVariable(T_depolarise(pbar2(θ)), P_Ctrl_1(θ)),
+        TrajectoryRandomVariable(IsPolarised(pbar2(θ),long_tspan), P_Ctrl_0(θ)),
     )
     D = mean(y, S...)
 end
-Base.length(::S_NoEF)=3
-getnames(::Type{S_NoEF}) = (:T_polarise, :T_depolarise, :IsPolarised)
+Base.length(::S_Ctrl)=3
+getnames(::Type{S_Ctrl}) = (:T_polarise, :T_depolarise, :IsPolarised)
 
 
 struct S_Switch <: EmpiricalSummary end

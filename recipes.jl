@@ -2,22 +2,20 @@
 using Printf
 
 const par_str = (
-    L"v~\mathrm{\mu m~min}^{-1}",
-    L"\Delta W_{\mathrm{on}}",
-    L"\Delta W_{\mathrm{off}}",
-    L"D~\mathrm{min}^{-1}",
-    L"\gamma_1",
-    L"\gamma_2",
-    L"\gamma_3",
-    L"\gamma_4",
+    "v (μm/min)",
+    "ΔW",
+    "D (1/min)",
+    "γ₁",
+    "γ₂",
+    "γ₃",
+    "γ₄",
 )
 const D_par_str = Dict(zip(par_names, par_str))
 
 const par_titles = (
     "Polarised cell speed",
-    "Polarisation barrier",
     "Depolarisation barrier",
-    "Diffusion constant",
+    "Timescale constant",
     "Velocity bias",
     "Speed increase",
     "Speed alignment",
@@ -41,13 +39,11 @@ end
 end
 # Inference batch is a weighted parameter set
 @recipe function f(B::InferenceBatch, I...)
-    ell_max = maximum(B.ell)
-    w = exp.(B.ell .- ell_max)
-    weights := w
+    weights := exp.(B.ell)
     if length(I)>1 
         seriescolor --> :Blues_6
     end
-    return (B.θ, I...)
+    return (hcat(B.θ...), I...)
 end
 
 
@@ -72,7 +68,7 @@ end
     xlims --> D_par_lims[Names[I]]
     ylims --> D_par_lims[Names[J]]
     legend := :none
-    seriestype --> :hist2d
+    seriestype --> :histogram2d
     marker_z --> get(plotattributes, :weights, nothing)
     (selectdim(P.θ, 1, I), selectdim(P.θ, 1, J))
 end
@@ -108,6 +104,7 @@ end
     link --> :none
     layout --> (N, N)
     
+    w = get(plotattributes, :weights, ones(size(P,2)))
     k = 0
     for (k_i, i) in enumerate(I)
         for j in I[1:(k_i-1)]
@@ -127,8 +124,8 @@ end
             @series begin
                 subplot := k
 
-                xx = quantile(selectdim(P, 1, j), [0.005, 0.5, 0.995])
-                yy = quantile(selectdim(P, 1, i), [0.005, 0.5, 0.995])
+                xx = quantile(selectdim(P, 1, j), Weights(w), [0, 0.5, 1])
+                yy = quantile(selectdim(P, 1, i), Weights(w), [0, 0.5, 1])
 
                 xlims := (minimum(xx), maximum(xx))
                 ylims := (minimum(yy), maximum(yy))
@@ -155,13 +152,13 @@ const ss_names = (
 )
 
 const ss_str = (
-    L"\bar T_0~\mathrm{min}",
-    L"\bar T_1~\mathrm{min}",
-    L"\bar T_-~\mathrm{min}",
-    L"\bar T_+~\mathrm{min}",
-    L"\bar T_\perp~\mathrm{min}",
-    L"\bar \Pi_\infty",
-    L"\bar P_{\perp \rightarrow -}",
+    "T₀ (min)",
+    "T₁ (min)",
+    "T₋ (min)",
+    "T₊ (min)",
+    "Tₚ (min)",
+    "ℙ(polarised)",
+    "ℙ(⟂ → -)",
 )
 const D_ss_str = Dict(zip(ss_names, ss_str))
 
@@ -234,8 +231,8 @@ end
     VelocityDistribution((θ_nt, vx, vy))
 end
 @recipe function f(θ::NamedTuple, vx, vy)
-    β, pbar2 = _map_barriers_to_coefficients(θ.EB_on, θ.EB_off)
-    W(p) = W_poly(β, pbar2)(abs2(p))
+    β = _map_barriers_to_coefficients(θ.EB)
+    W(p) = W_poly(β)(abs2(p))
     
     polarity_density(p) = exp(θ.γ4*real(p) - W(p))
     function get_pol(v)
@@ -288,18 +285,18 @@ end
 
 #### View trajectories against data
 
-@recipe function f(θ::ParameterVector, ::Type{NoEF})
-    P = P_NoEF(θ)
+@recipe function f(θ::ParameterVector, xobs::Array{ComplexF64,2}, ::Type{NoEF})
+    P = P_Ctrl(θ)
     sol = rand(P, 50)
     xsim = observation_filter(sol)
-    CompareTrajectories((xobs_NoEF, xsim))
+    CompareTrajectories((xobs, xsim))
 end
 
-@recipe function f(θ::ParameterVector, ::Type{ConstantEF})
+@recipe function f(θ::ParameterVector, xobs::Array{ComplexF64,2}, ::Type{ConstantEF})
     P = P_EF(θ)
     sol = rand(P, 50)
     xsim = observation_filter(sol)
-    CompareTrajectories((xobs_EF, xsim))
+    CompareTrajectories((xobs, xsim))
 end
 
 @userplot CompareTrajectories

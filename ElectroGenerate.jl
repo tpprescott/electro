@@ -2,56 +2,105 @@ include("ElectroInference.jl")
 module ElectroGenerate
 
 using ..ElectroInference
-using Combinatorics
+using Combinatorics, Distributions, Statistics
 
 ############ Inference data
 
 # Start with NoEF
-function Posterior_NoEF(; fn::String="electro_data")
-    B = smc(L_NoEF(), Prior(), 2000, N_T=1000, alpha=0.8, Δt_min=1e-2)
-    save(B, :L_NoEF; fn=fn)
-    return B
+function Posterior_Ctrl(; kwargs...)
+    SL_list = (L_Ctrl(data=yobs_Ctrl_1), L_Ctrl(data=yobs_Ctrl_2), L_Ctrl(data=yobs_Ctrl))
+    fn_list = ("replicate_1", "replicate_2", "merged_data")
+    p = Prior()
+    for (L, fn) in zip(SL_list, fn_list)
+        B = smc(L, p, 1000; synthetic_likelihood_n=500, N_T=333, alpha=0.8, Δt_min=1e-6, σ=[0.1, 0.05, 0.01], kwargs...)
+        save(B, :L_Ctrl; fn=fn)
+        mcmc!(B, 100, L, p, 500)
+        save(B, :L_Ctrl; fn=fn*"_post")
+    end
+    println("Success! Control posteriors all done")
+    return true
 end
 
 # Analyse NoEF results as a conditional expectation
-function EmpiricalSummary_NoEF(; fn::String="electro_data")
-    B = load(:L_NoEF, (:v, :EB_on, :EB_off, :D); fn=fn)
-    C = ConditionalExpectation(B, S_NoEF(), n=500)
-    save(C, :S_NoEF; fn=fn)
-    return C
+function EmpiricalSummary_Ctrl()
+    Φ = S_Ctrl()
+    fn_list = ("replicate_1", "replicate_2", "merged_data")
+    for fn in fn_list
+        B = load(:L_Ctrl, (:v, :EB, :D); fn=fn*"_post")
+        C = ConditionalExpectation(B, S_Ctrl(); n=500)
+        save(C, :S_Ctrl; fn=fn*"_post")
+    end
+    println("Success! Control conditional expectations all done")
+    return true
 end
 
+function Posterior_EF(X; L, fn, kwargs...)
+    p = Prior(X)
+    σ=[0.1, 0.05, 0.01]
+    for i in X
+        push!(σ, 0.1)
+    end
+    
+    B = smc(L, p, 1000; synthetic_likelihood_n=500, N_T=333, alpha=0.8, Δt_min=1e-6, σ=σ, kwargs...)
+    save(B, :L_Joint; fn=fn)
+    mcmc!(B, 100, L, p, 500)
+    save(B, :L_Joint; fn=fn*"_post")
+    
+    println("Success! Posterior for $X done")
+    return true
+end
 
-# Set up the intermediate prior based on the NoEF output and evaluated against EF only
-function SequentialPosterior_EF(
-    X;
-    fn::String="electro_data",
+function AllPosterior_EF(
+    dataCtrl_list=(yobs_Ctrl, yobs_Ctrl_1, yobs_Ctrl_2),
+    data200_list=(yobs_200, yobs_200_1, yobs_200_2),
+    fn_list = ("merged_data", "replicate_1", "replicate_2");
     kwargs...
 )
-    π_X = Prior(X)
-    B0 = load(:L_NoEF, (:v, :EB_on, :EB_off, :D); fn=fn)
 
-    B1 = InferenceBatch(π_X, B0)
-    smc(L_EF(), π_X, 2000, B1, N_T=1000, alpha=0.8, Δt_min=1e-2)
+    SL_list = (L_Joint(data_NoEF=a, data_EF=b) for (a,b) in zip(dataCtrl_list, data200_list))
 
-    save(B1, :L_EF; fn=fn)
-    return B1
+    for (L, fn) in zip(SL_list, fn_list)
+        for X in powerset([1,2,3,4])
+            Posterior_EF(X; L=L, fn=fn, kwargs...)
+        end
+        println("Success! Posteriors for $fn are done!")
+    end
+    println("Success! All posteriors are done!")
+    return true
 end
 
-function AllSequentialInference(; fn::String="electro_data", kwargs...)
-    for X in combination_powerset
-        SequentialPosterior_EF(X; fn=fn, kwargs...)
-    end
-    return nothing
+function PosteriorPartition_EF(L, X, N; synthetic_likelihood_n=500, kwargs...)
+    Names = get_par_names(X)
+    B = load(:L_Joint, Names, fn="merged_data_post")
+    prior = Prior(X)
+
+    # Form and sample from importance distribution
+    Σ = cov(B.θ)
+    q = MixtureModel(map(p->MvNormal(p.θ.θ, Σ), B))
+    ts = rand(q, N)
+    θs = Parameters.(eachcol(ts), Ref(Names))
+
+    # Get importance weights
+    logqs = logpdf(q, ts)
+    logps = logpdf(prior, ts)
+    simFlags = insupport.(Ref(prior), θs)
+
+    # Simulate and get importance weighted posterior ∫ L(θ) π(θ) dθ = ∫ L(θ) [π(θ)/q(θ)] q(θ) dθ
+    logsl = get_log_sl(L, θs, simFlags, synthetic_likelihood_n)
+    ell = logsl .+ logps .- logqs
+    ellmax = maximum(ell)
+    big_ell = log(mean(exp, ell.-ellmax)) + ellmax
+
+    asave(big_ell, :log_partition_function, :L_Joint, Names, fn="merged_data_post")
+    @info "Success! log_partition_function for $X is $big_ell"
 end
-function AllSequentialPartitions(N::Int; fn::String="electro_data", kwargs...)
-    for X in combination_powerset
-        Names = get_par_names(X)
-        B = load(:L_EF, Names, fn=fn)
-        big_ell = log_partition_function(L_Joint(), X, B, N)
-        @info "log_partition_function for $X is $big_ell"
-        asave(big_ell, :log_partition_function, :L_EF, Names)
+function AllPosteriorPartitions(N::Int; synthetic_likelihood_n=500, kwargs...)
+    L = L_Joint(; data_NoEF=yobs_Ctrl, data_EF=yobs_200)
+    for X in powerset([1,2,3,4])
+        PosteriorPartition_EF(L, X, N, synthetic_likelihood_n=synthetic_likelihood_n, kwargs...)
     end
+    println("Success! All partition functions calculated!")
+    return true
 end
 
 # Analyse Switch results as a conditional expectation

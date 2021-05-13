@@ -5,8 +5,7 @@ export TrajectoryRandomVariable
 
 ### PROB FUNC(S) (prob, i, repeat) -> 
 
-abstract type AbstractPolarityDistribution
-end
+abstract type AbstractPolarityDistribution end
 function prob_func(p0::AbstractPolarityDistribution)
     pf = function (base, i, repeat)
         remake(base, u0=p0())
@@ -15,9 +14,13 @@ function prob_func(p0::AbstractPolarityDistribution)
 end
 
 struct RandomInitialPolarity{T} <: AbstractPolarityDistribution
-    σ::T
+    pDist::T
 end
-(r::RandomInitialPolarity)() = [r.σ*randn(ComplexF64), zero(ComplexF64)]
+(r::RandomInitialPolarity)() = [rand(r.pDist)*cis(2*π*rand()), zero(ComplexF64)]
+
+RandomInitialPolarity(σ::Real) = RandomInitialPolarity(Rayleigh(σ))
+RandomPolarised(σ::Real) = RandomInitialPolarity(TruncatedNormal(1, σ, 0, 2))
+
 
 struct FixedInitialPolarity <: AbstractPolarityDistribution
     p0::ComplexF64
