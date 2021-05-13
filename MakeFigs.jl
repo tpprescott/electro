@@ -30,6 +30,9 @@ end
 
 function SIFigA(fn="NoEF_Posterior_Grid.svg", pth=pth)
     fig = posterior_NoEF_2d(; sizes...)
+    for idx in 1:4:9
+        plot!(fig, subplot=idx, xlims=:auto)
+    end
     savefig(fig, fn, pth)
     return fig
 end
@@ -65,7 +68,10 @@ function Fig6(fn="EF_Posterior.svg", pth=pth)
 end
 
 function SIFigB(fn="EF_Posterior_Grid.svg", pth=pth)
-    fig = posterior_EF_2d(; sizes..., guidefontfamily=:match)
+    fig = posterior_EF_2d(; sizes...)
+    for (idx, xticks) in zip(1:5:16, [.75:.25:1.5, 0:0.02:0.06, 0:0.03:0.18, 0:0.3:1.2])
+        plot!(fig, subplot=idx, xlims=:auto)
+    end
     savefig(fig, fn, pth)
     return fig
 end
@@ -88,10 +94,10 @@ function Fig67(fn="EF_Smush.svg", pth=pth)
     return fig
 end
 
-function Fig89(fn="smush_Switch.svg", pth=pth)
-    fig = smush_Switch(; sizes...)
+function Fig89(fn="Switch_Smush.svg", pth=pth)
+    fig, x = smush_Switch(; sizes...)
     savefig(fig, fn, pth)
-    return fig
+    return fig, x
 end
 
 #=

@@ -5,6 +5,7 @@ using ..ElectroInference
 using Plots, StatsPlots
 using LaTeXStrings
 using StatsBase
+using Distributions
 
 export colwidth
 const colwidth = 312
@@ -141,13 +142,13 @@ export smush_NoEF
 function smush_NoEF(n=50; kwargs...)
     l = @layout [a{0.33w} [b{0.5h}; c]]
     f2 = posterior_Ctrl(; layout=(1,3), link=:none)
-    plot!(f2, subplot=1, title="(c) Polarised cell speed", ylims=:auto, xlims=:auto)
-    plot!(f2, subplot=2, title="(d) Depolarisation barrier", ylims=:auto, xlims=:auto)
-    plot!(f2, subplot=3, title="(e) Diffusion constant", ylims=:auto, xlims=:auto)
+    plot!(f2, subplot=1, title="(b) Polarised cell speed", ylims=:auto, xlims=:auto, xticks=.8:.2:1.8)
+    plot!(f2, subplot=2, title="(c) Depolarisation barrier", ylims=:auto, xlims=:auto, xticks=.0:.02:.1)
+    plot!(f2, subplot=3, title="(d) Timescale constant", ylims=:auto, xlims=:auto, xticks=.02:.03:.11)
 
     f3 = compare_Ctrl(n; layout=(2,1), link=:none)
     plot!(f3, subplot=1, title="(a) Observed positions")
-    plot!(f3, subplot=2, title="(b) Simulated positions")
+    plot!(f3, subplot=2, title="(e) Simulated positions")
     xlims!(f3[2], xlims(f3[1]))
     ylims!(f3[2], ylims(f3[1]))
     xlims!(f3[1], xlims(f3[2]))
@@ -327,10 +328,10 @@ export smush_EF
 function smush_EF(; kwargs...)
     
     f6 = posterior_EF(; xlims=:auto, layout=(2,2), seriestype=:histogram, seriescolor=1, linecolor=1, ylim=:auto, link=:none)
-    plot!(f6, subplot=1, title="(a) Polarised cell speed")
-    plot!(f6, subplot=2, title="(b) Depolarisation barrier")
-    plot!(f6, subplot=3, title="(c) Diffusion constant")
-    plot!(f6, subplot=4, title="(d) Polarity bias")
+    plot!(f6, subplot=1, title="(a) Polarised cell speed", xticks=0.75:0.25:1.5)
+    plot!(f6, subplot=2, title="(b) Depolarisation barrier", xticks=0:0.02:0.06)
+    plot!(f6, subplot=3, title="(c) Timescale constant", xticks=0.04:0.03:0.18)
+    plot!(f6, subplot=4, title="(d) Polarity bias", xticks=0:0.2:1.2)
     
     f7 = compare_Joint(layout=(2,2), xlabel="", ylabel="", link=:none)
     plot!(f7, subplot=1, title="(e) Autonomous: observed")
@@ -339,17 +340,19 @@ function smush_EF(; kwargs...)
     plot!(f7, subplot=4, title="(h) Electrotaxis: simulated")
 
     l = @layout [a{0.5h}; b]
-    f = plot(f6, f7; size=(colwidth, 1.5*colwidth), layout=l, kwargs...)
+    f = plot(f6, f7; size=(colwidth, 1.5*colwidth), layout=l, link=:none, kwargs...)
 
-    xx = [xlims(f[j]) for j in 5:8]
-    yy = [ylims(f[j]) for j in 5:8]
+    for I in [5:6, 7:8]
+        xx = [xlims(f[j]) for j in I]
+        yy = [ylims(f[j]) for j in I]
 
-    _x = (minimum(L[1] for L in xx), maximum(L[2] for L in xx))
-    _y = (minimum(L[1] for L in yy), maximum(L[2] for L in yy))
+        _x = (minimum(L[1] for L in xx), maximum(L[2] for L in xx))
+        _y = (minimum(L[1] for L in yy), maximum(L[2] for L in yy))
 
-    for j in 5:8
-        xlims!(f[j], _x)
-        ylims!(f[j], _y)
+        for j in I
+            xlims!(f[j], _x)
+            ylims!(f[j], _y)
+        end
     end
     f
 end
@@ -371,6 +374,11 @@ function predict_summaries(B=b4, k=10; kwargs...)
     end
     plot!(fig; subplot=2, legend=:right)
     plot!(fig; kwargs...)
+
+    D = fit(MvNormal, y_switch)
+    xvalidate = logpdf(D, yobs_Switch)
+
+    return fig, xvalidate
 end
 
 export compare_Switch
@@ -415,7 +423,7 @@ end
 
 export smush_Switch
 function smush_Switch(B=b4, k=10, n=25; ht=1.5*colwidth, kwargs...)
-    a = predict_summaries(B, k)
+    a, x = predict_summaries(B, k)
     b = compare_Switch(B, n, link=:none)
 
     L = @layout [a{0.67h}; b]
@@ -430,7 +438,7 @@ function smush_Switch(B=b4, k=10, n=25; ht=1.5*colwidth, kwargs...)
         xlims!(f[j], _x)
         ylims!(f[j], _y)
     end
-    f
+    f, x
 end
 
 end

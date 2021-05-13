@@ -15,7 +15,7 @@ const D_par_str = Dict(zip(par_names, par_str))
 const par_titles = (
     "Polarised cell speed",
     "Depolarisation barrier",
-    "Diffusion constant",
+    "Timescale constant",
     "Velocity bias",
     "Speed increase",
     "Speed alignment",

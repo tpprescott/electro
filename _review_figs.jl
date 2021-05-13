@@ -1,4 +1,3 @@
-include("ElectroInference.jl")
 using .ElectroInference
 using StatsPlots, Plots, CSV
 using StatsBase
@@ -32,8 +31,8 @@ function preliminary_analysis(disp_ctrl_1=disp_ctrl_1, disp_ctrl_2=disp_ctrl_2; 
   arg_ctrl_2 = angle.(disp_ctrl_2)
 
   # Plot some displacement lengths distributions for all cells
-  fig1A = density(mod_ctrl_1; legend=:none, xlims=[0, Inf], xlabel="Displacement (μm)", title="(a) Control 1: displacement distances (5min)", yticks=[], size=(360,240), sizes...)
-  fig1B = density(mod_ctrl_2; legend=:none, xlims=[0, Inf], xlabel="Displacement (μm)", title="(b) Control 2: displacement distances (5min)", yticks=[], size=(360,240), sizes...)
+  fig1A = density(mod_ctrl_1; legend=:none, xlims=[0, 30.0], xlabel="Displacement (μm)", title="(a) Control 1: displacement distances (5min)", yticks=[], size=(360,240), sizes...)
+  fig1B = density(mod_ctrl_2; legend=:none, xlims=[0, 30.0], xlabel="Displacement (μm)", title="(b) Control 2: displacement distances (5min)", yticks=[], size=(360,240), sizes...)
 
   # Plot some displacement angles over time (see persistence and drift?)
   #fig1C = plot((1:60).*5, arg_ctrl_1[:,3:10:end]; legend=:none, ylim=[-pi,pi], yticks=([-pi, -pi/2, 0, pi/2, pi], ["-π", "-π/2", "0", "π/2", "π"]), xlabel="Interval End (min)", ylabel="Displacement angle", title="(c) Control 1: displacement angles", size=(360,240), sizes..., yguidefontfamily=:auto)
@@ -101,7 +100,7 @@ function see_summaries(B=B, B1=B1, B2=B2; kwargs...)
     scatter!(fig3, yobs_Ctrl_1[i,:], fill(yy1/3, size(yobs_Ctrl_1, 2)), subplot=i, label="Data 1", seriescolor=1, markershape=:vline)
     scatter!(fig3, yobs_Ctrl_2[i,:], fill(2*yy1/3, size(yobs_Ctrl_2, 2)), subplot=i, label="Data 2", seriescolor=2, markershape=:vline, title=titles[i], yticks=[], xlabel=labels[i])  
   end
-  plot!(fig3, subplot=2, legend=:topright)
+  plot!(fig3, subplot=4, legend=:topright)
   plot!(fig3; kwargs...)
 
   F1 = fit(MvNormal, hcat(Y1dims...)')
